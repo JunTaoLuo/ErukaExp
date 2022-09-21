@@ -7,6 +7,8 @@ select * from "MonthlyTax" mt limit 300;
 
 select * from "PropertyTransfer" pt limit 300;
 
+select * from "RentalRegistration" rr limit 300;
+
 -- how do we identify pre-1998 sales in the data? What date/time variables exist in the schema?
 select * from information_schema.columns
 where table_schema = 'public'
@@ -86,7 +88,21 @@ select count(*)
 from "BuildingInfo" bi left outer join "MonthlyTax" mt on bi."PARCELID" = mt.parcel_number 
 where mt.parcel_number is null;
 
+--Rental Registration
+select count(*) from "RentalRegistration" rr; 
+select count(distinct raw_parcel_number) from "RentalRegistration"; 
 
+select count(*)
+from "RentalRegistration" rr left outer join "HistoricSales" hs on rr.raw_parcel_number = hs.parcel_number 
+where hs.parcel_number is null;
+
+select count(*)
+from "RentalRegistration" rr left outer join "MonthlyTax" mt on rr.raw_parcel_number = mt.parcel_number 
+where mt.parcel_number is null;
+
+select count(*)
+from "RentalRegistration" rr left outer join "BuildingInfo" bi on bi."PARCELID" = rr.raw_parcel_number 
+where bi."PARCELID" is null;
 
 
 
