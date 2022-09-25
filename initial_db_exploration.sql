@@ -3,6 +3,9 @@ select * from "BuildingInfo" bi limit 300;
 
 select * from "HistoricSales" hs limit 300;
 
+select count(*) from "HistoricSales" hs 
+where date_of_sale < '1998-01-01' and sale_price is not null;
+
 select * from "MonthlyTax" mt limit 300;
 
 select * from "PropertyTransfer" pt limit 300;
@@ -103,6 +106,8 @@ where mt.parcel_number is null;
 select count(*)
 from "RentalRegistration" rr left outer join "BuildingInfo" bi on bi."PARCELID" = rr.raw_parcel_number 
 where bi."PARCELID" is null;
+
+-- missingness of sale price in 
 
 
 

@@ -2,12 +2,13 @@ import pandas as pd
 import os.path
 from sqlalchemy import create_engine
 from pathlib import Path
+import ohio.ext.pandas # library with better pandas -> postgreSQL writing
 
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
 # TODO: update db connection string
-db_str = "postgresql://postgres:password@localhost:5432/postgres"
+db_str = # Enter connection string
 db = create_engine(db_str)
 
 def populate_db_from_file(drive: GoogleDrive, filepath: str, file_id: str, db, table_name: str):
@@ -25,7 +26,7 @@ def populate_db_from_file(drive: GoogleDrive, filepath: str, file_id: str, db, t
         raise Exception(f"Unrecognized file extension for file {filepath}")
 
     print("Writing to Postgres")
-    file_df.to_sql(table_name, db, if_exists="replace", index=False)
+    file_df.pg_copy_to(table_name, db, schema = 'raw', if_exists="replace", index=False)
 
     print("Done")
 
