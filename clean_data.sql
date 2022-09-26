@@ -62,7 +62,7 @@ alter table cleaned.property_transfer
 							
 -- Renaming all IDs to make them consistent (parcelid)
 alter table cleaned.building_info 
-	rename column PARCELID to parcelid;
+	rename column "PARCELID" to parcelid;
 
 alter table cleaned.monthly_tax 
 	rename column parcel_number to parcelid;
