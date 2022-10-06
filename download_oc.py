@@ -12,7 +12,7 @@ output_dir = "Dataset/Ownership/jpg/"
 # Ownership page source template
 ownership_source = 'https://wedge.hcauditor.org/view/re/{}/2021/imagesOwnerCard'
 ownership_reference_regex = '.*convert\/(.*.tif)\/.*'
-ownership_file = 'https://wedge.hcauditor.org/pdf/{}.pdf'
+ownership_file = 'https://wedge.hcauditor.org/convert/{}/'
 
 
 def download_file(parcel_number):
@@ -93,5 +93,5 @@ for entry in input:
 print(summary_results)
 
 with open(results_output_file, "wb") as f:
-    for entry, result in file_results:
-        f.write(f"{str(entry)},{result}")
+    for (entry, result) in file_results:
+        f.write(f"{str(entry)},{str(result)}")
