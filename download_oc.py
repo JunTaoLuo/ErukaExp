@@ -92,6 +92,6 @@ for entry in input:
 
 print(summary_results)
 
-with open(results_output_file, "wb") as f:
+with open(results_output_file, "w") as f:
     for (entry, result) in file_results:
-        f.write(f"{str(entry)},{str(result)}")
+        f.write(f"{str(entry)},{str(result)}\n")
