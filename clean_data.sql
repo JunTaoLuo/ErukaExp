@@ -42,6 +42,14 @@ alter table cleaned.property_transfer
 update cleaned.property_transfer 
 	set date_of_sale = to_date(concat(year_of_sale, '-', month_of_sale, '-', day_of_sale),
 								'YYYY-MM-DD');
+							
+-- Formatting property class code variable
+update cleaned.property_transfer 
+	set property_class = null
+	where property_class = '   ';
+
+alter table cleaned.property_transfer
+	alter column property_class type int using(property_class::int);
 
 -- Creating is-new flag for property transfer (right now stored in land_value)
 alter table cleaned.property_transfer 
