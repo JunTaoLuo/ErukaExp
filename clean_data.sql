@@ -31,6 +31,9 @@ alter table cleaned.property_transfer
 update cleaned.property_transfer 
 	set parcelid = lpad(book, 3, '0') || lpad(plat, 4, '0') || lpad(parcel, 4, '0') || lpad(multi_owner, 2, '0');
 
+update cleaned.property_transfer 
+	set parcelid = upper(parcelid);
+
 -- Formatting dates
 update cleaned.property_transfer 
 	set year_of_sale = '19' || year_of_sale
@@ -67,10 +70,23 @@ alter table cleaned.property_transfer
 	alter column land_value type double precision using(land_value::double precision),
 	alter column building_value type double precision using(building_value::double precision),
 	alter column sale_price type double precision using(sale_price::double precision);
+
+-- Cleaning BuildingInfo
+update cleaned.building_info 
+	set "YEARBUILT" = null 
+	where "YEARBUILT" = 0;
+	
+-- Cleaning historic sales
+update cleaned.historic_sales 
+	set year_built = null
+	where year_built = 0;
 							
 -- Renaming all IDs to make them consistent (parcelid)
 alter table cleaned.building_info 
 	rename column "PARCELID" to parcelid;
+
+update cleaned.building_info 
+	set parcelid = upper(parcelid);
 
 alter table cleaned.monthly_tax 
 	rename column parcel_number to parcelid;
