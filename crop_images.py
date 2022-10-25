@@ -16,11 +16,12 @@ def crop_image(img):
 
 if __name__ == '__main__':
 
+    # Parametrize these later 
     input_dir = "Dataset/Ownership/jpg"
     output_dir = "Dataset/Ownership/cropped"
 
     for file in os.listdir(input_dir):
         img = cv2.imread(f'{input_dir}/{file}')
-        img = crop_image(img) # cropping before running pytesseract improves the speed dramatically
+        img = crop_image(img)
         cv2.imwrite(f'{output_dir}/{file}', img)
 
