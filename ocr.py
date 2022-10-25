@@ -2,9 +2,12 @@ import time
 import cv2
 import os
 import pytesseract
+import numpy as np
 from pytesseract import Output
 from pathlib import Path
 
+# Set PyTesseract Executable path
+pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 # Hyperparameters
 confidence_threshold = 60
@@ -21,6 +24,34 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 # Utilties
+def crop_image(img):
+    # Code sourced from: https://stackoverflow.com/questions/49907382/how-to-remove-whitespace-from-an-image-in-opencv
+    # Seems to work well based on manual tests on the images
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) # grayscale the image
+    gray = 255*(gray < 128).astype(np.uint8) # To invert the text to white
+    coords = cv2.findNonZero(gray) # Find all non-zero points (text)
+    x, y, w, h = cv2.boundingRect(coords) # Find minimum spanning bounding box that covers all text
+    rect = img[y:y+h, x:x+w] # Crop the image - note we do this on the original image
+
+    return rect
+
+def remove_noise(img):
+    # Convert to gray
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Apply dilation and erosion to remove some noise
+    kernel = np.ones((1, 1), np.uint8)
+    img = cv2.dilate(img, kernel, iterations=1)
+    img = cv2.erode(img, kernel, iterations=1)
+    # Apply blur to smooth out the edges
+    img = cv2.GaussianBlur(img, (5, 5), 0)
+
+    return img
+
+def binarize_image(img):
+    thresh, thresh_image = cv2.threshold(img,127,255,cv2.THRESH_BINARY) # set a threshold based on which image converted to black/white 
+    thresh_image = cv2.convertScaleAbs(thresh_image) # converting the scale  
+    return thresh_image
+
 def get_entries(column_header_indicies, d):
     all_entries = []
     for columns_i in column_header_indicies:
@@ -59,14 +90,16 @@ def get_entry_texts(entries_list2D, d):
     return all_texts
 
 def filter_entry_texts(entries_list2D):
-    match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "."]
+    match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", ","]
     all_texts = []
     for entry_list in entries_list2D:
         entry_texts = []
         for text_raw in entry_list:
             matched = [c in match_list for c in text_raw]
             if all(matched):
-                entry_texts.append(text_raw.replace(".", ""))
+                text_raw.replace(",", "")
+                text_raw.replace(".", "")
+                entry_texts.append(text_raw)
         all_texts.append(entry_texts)
     return all_texts
 
@@ -74,6 +107,13 @@ def parse_parcel(parcel):
 
     img = cv2.imread(f'{input_dir}/{parcel}.jpg')
 
+    # Image pre-processing
+    img = crop_image(img) # cropping before running pytesseract improves the speed dramatically
+    img = binarize_image(img) 
+
+#    img = remove_noise(img) # Note: noise removal doesn't really work well, it makes the image blurrier. Also because there's not much noise to remove.
+#    img = cv2.Canny(img,0,200) # Edge detection also doesn't really help
+    
     d = pytesseract.image_to_data(img, output_type=Output.DICT)
     # print(d.keys())
     # print(d['text'])
@@ -97,9 +137,7 @@ def parse_parcel(parcel):
     img = mark_indicies_list2D(buildings_entries, img, d)
     img = mark_indicies_list2D(totals_entries, img, d)
 
-    img_dim = img.shape
-    cropped_img = img[int(img_dim[0]*0.75):img_dim[0], 0:int(img_dim[1]*0.25)]
-    cv2.imwrite(f'{output_dir}/{parcel}.jpg', cropped_img)
+    cv2.imwrite(f'{output_dir}/{parcel}.jpg', img)
 
     buildings_texts_raw = get_entry_texts(buildings_entries, d)
     totals_texts_raw = get_entry_texts(totals_entries, d)
