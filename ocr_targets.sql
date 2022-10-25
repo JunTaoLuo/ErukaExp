@@ -133,7 +133,8 @@ with subset(
             delinquent_taxes          ,
             delinquent_taxes_paid     ,
             active_flag               ,
-            null::bigint as initial_sale_price
+            null::bigint as initial_land_value,
+            null::bigint as initial_building_value
         from "MonthlyTax"
         where prop_class_code = 510
         order by random()
