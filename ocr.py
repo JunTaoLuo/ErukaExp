@@ -58,8 +58,8 @@ def remove_noise(img):
     return img
 
 def binarize_image(img):
-    thresh, thresh_image = cv2.threshold(img,127,255,cv2.THRESH_BINARY) # set a threshold based on which image converted to black/white 
-    thresh_image = cv2.convertScaleAbs(thresh_image) # converting the scale  
+    thresh, thresh_image = cv2.threshold(img,127,255,cv2.THRESH_BINARY) # set a threshold based on which image converted to black/white
+    thresh_image = cv2.convertScaleAbs(thresh_image) # converting the scale
     return thresh_image
 
 def get_entries(column_header_indicies, d):
@@ -119,12 +119,17 @@ def parse_parcel(parcel):
 
     # Image pre-processing
     img = crop_image(img) # cropping before running pytesseract improves the speed dramatically
-    img = fix_orientation(img) # correct orientation if needed (some images are scanned in weird direction)
-    img = binarize_image(img) 
+
+    # The image should be in landscape so if height > width, rotate the image based on orientation
+    if img.shape[0] > img.shape[1]:
+        print(f"Parcel {parcel} is in the wrong orientation")
+        img = fix_orientation(img) # correct orientation if needed (some images are scanned in weird direction)
+
+    img = binarize_image(img)
 
 #    img = remove_noise(img) # Note: noise removal doesn't really work well, it makes the image blurrier. Also because there's not much noise to remove.
 #    img = cv2.Canny(img,0,200) # Edge detection also doesn't really help
-    
+
     d = pytesseract.image_to_data(img, output_type=Output.DICT)
     # print(d.keys())
     # print(d['text'])

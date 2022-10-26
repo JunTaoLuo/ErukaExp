@@ -2,3 +2,6 @@ pdf2image
 requests
 sqlalchemy
 psycopg2
+opencv-python
+pytesseract
+imutils
