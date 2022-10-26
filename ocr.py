@@ -5,6 +5,7 @@ import pytesseract
 import numpy as np
 from pytesseract import Output
 from pathlib import Path
+import imutils
 
 # Set PyTesseract Executable path
 pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -34,6 +35,15 @@ def crop_image(img):
     rect = img[y:y+h, x:x+w] # Crop the image - note we do this on the original image
 
     return rect
+
+def fix_orientation(img):
+    # Fetches info about the orientation, rotation needed to fix the image
+    results = pytesseract.image_to_osd(img, output_type=Output.DICT)
+
+    if results['orientation'] == 0: # if image is already in correct orientation, do nothing
+        return img
+    else:
+        return imutils.rotate_bound(img, angle=results["rotate"]) # rotate by the amount identified by pytesseract
 
 def remove_noise(img):
     # Convert to gray
@@ -109,6 +119,7 @@ def parse_parcel(parcel):
 
     # Image pre-processing
     img = crop_image(img) # cropping before running pytesseract improves the speed dramatically
+    img = fix_orientation(img) # correct orientation if needed (some images are scanned in weird direction)
     img = binarize_image(img) 
 
 #    img = remove_noise(img) # Note: noise removal doesn't really work well, it makes the image blurrier. Also because there's not much noise to remove.
@@ -208,3 +219,5 @@ for parcel in parcels:
 with open(f"{log_dir}/ocr.log", "w") as f:
     for (parcel, building, total) in results:
         f.write(f"{parcel},{building},{total}\n")
+
+
