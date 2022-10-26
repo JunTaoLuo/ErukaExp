@@ -1,2 +1,4 @@
 pdf2image
 requests
+sqlalchemy
+psycopg2
