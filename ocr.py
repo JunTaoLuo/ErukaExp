@@ -1,14 +1,17 @@
+from math import isclose
 import time
+import csv
 import cv2
 import os
 import pytesseract
 import numpy as np
 from pytesseract import Output
 from pathlib import Path
+from tqdm import tqdm
 import imutils
 
-# Set PyTesseract Executable path
-pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'
+# Set PyTesseract Executable path (Windows)
+# pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 # Hyperparameters
 confidence_threshold = 60
@@ -105,15 +108,31 @@ def filter_entry_texts(entries_list2D):
     for entry_list in entries_list2D:
         entry_texts = []
         for text_raw in entry_list:
-            matched = [c in match_list for c in text_raw]
-            if all(matched):
-                text_raw.replace(",", "")
-                text_raw.replace(".", "")
-                entry_texts.append(text_raw)
+            if text_raw:
+                matched = [c in match_list for c in text_raw]
+                if all(matched):
+                    filtered_text = text_raw.replace(",", "")
+                    filtered_text = filtered_text.replace(".", "")
+                    entry_texts.append(filtered_text)
         all_texts.append(entry_texts)
     return all_texts
 
-def parse_parcel(parcel):
+class ParcelResult():
+    def __init__(self, parcel) -> None:
+        self.parcel = parcel
+        self.building_indicies = []
+        self.land_indicies = []
+        self.total_indicies = []
+        self.initial_building_value = 0
+        self.initial_land_value = 0
+
+class TargetLabel():
+    def __init__(self, parcel) -> None:
+        self.parcel = parcel
+        self.initial_building_value = 0
+        self.initial_land_value = 0
+
+def parse_parcel(parcel) -> ParcelResult:
 
     img = cv2.imread(f'{input_dir}/{parcel}.jpg')
 
@@ -127,78 +146,79 @@ def parse_parcel(parcel):
 
     img = binarize_image(img)
 
-#    img = remove_noise(img) # Note: noise removal doesn't really work well, it makes the image blurrier. Also because there's not much noise to remove.
-#    img = cv2.Canny(img,0,200) # Edge detection also doesn't really help
+    # img = remove_noise(img) # Note: noise removal doesn't really work well, it makes the image blurrier. Also because there's not much noise to remove.
+    # img = cv2.Canny(img,0,200) # Edge detection also doesn't really help
 
     d = pytesseract.image_to_data(img, output_type=Output.DICT)
+    # d = pytesseract.image_to_data(img, output_type=Output.DICT, config="-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
     # print(d.keys())
     # print(d['text'])
 
-    buildings_indicies = []
-    total_indicies = []
+    result = ParcelResult(parcel)
 
     for index, text in enumerate(d['text']):
         if text.lower() == "buildings":
-            buildings_indicies.append(index)
+            result.building_indicies.append(index)
         if text.lower() == "total":
-            total_indicies.append(index)
+            result.total_indicies.append(index)
+        if text.lower() == "land":
+            result.land_indicies.append(index)
 
     # img = mark_indicies_list(range(len(d['text'])), img, d)
-    img = mark_indicies_list(buildings_indicies, img, d)
-    img = mark_indicies_list(total_indicies, img, d)
+    img = mark_indicies_list(result.building_indicies, img, d)
+    img = mark_indicies_list(result.land_indicies, img, d)
+    img = mark_indicies_list(result.total_indicies, img, d)
 
-    buildings_entries = get_entries(buildings_indicies, d)
-    totals_entries = get_entries(total_indicies, d)
+    buildings_entries = get_entries(result.building_indicies, d)
+    # lands_entries = get_entries(result.land_indicies, d)
 
     img = mark_indicies_list2D(buildings_entries, img, d)
-    img = mark_indicies_list2D(totals_entries, img, d)
+    # img = mark_indicies_list2D(lands_entries, img, d)
 
     cv2.imwrite(f'{output_dir}/{parcel}.jpg', img)
 
     buildings_texts_raw = get_entry_texts(buildings_entries, d)
-    totals_texts_raw = get_entry_texts(totals_entries, d)
+    # lands_texts_raw = get_entry_texts(lands_entries, d)
 
     buildings_texts = filter_entry_texts(buildings_texts_raw)
-    totals_texts = filter_entry_texts(totals_texts_raw)
-
-    parsed_building = ""
-    parsed_total = ""
+    # lands_texts = filter_entry_texts(lands_texts_raw)
 
     with open(f'{output_dir}/{parcel}.log', "w") as f:
-        f.write(f"Found buildings: {len(buildings_indicies)}\n")
-        f.write(f"Found total: {len(total_indicies)}\n")
+        f.write(f"Found buildings: {len(result.building_indicies)}\n")
+    #     f.write(f"Found land: {len(result.land_indicies)}\n")
 
         f.write(f"Raw text:\n")
         for building_index, building_texts in enumerate(buildings_texts_raw):
             f.write(f"  Building column {building_index}:\n")
             for text in building_texts:
                 f.write(f"    {text}\n")
-        for total_index, total_texts in enumerate(totals_texts_raw):
-            f.write(f"  Total column {total_index}:\n")
-            for text in total_texts:
-                f.write(f"    {text}\n")
+    #     for land_index, land_texts in enumerate(lands_texts_raw):
+    #         f.write(f"  Land column {land_index}:\n")
+    #         for text in land_texts:
+    #             f.write(f"    {text}\n")
 
         f.write(f"Filtered text:\n")
         for building_index, building_texts in enumerate(buildings_texts):
             f.write(f"  Building column {building_index}:\n")
             for text in building_texts:
                 f.write(f"    {text}\n")
-        for total_index, total_texts in enumerate(totals_texts):
-            f.write(f"  Total column {total_index}:\n")
-            for text in total_texts:
-                f.write(f"    {text}\n")
+    #     for land_index, land_texts in enumerate(lands_texts):
+    #         f.write(f"  Land column {land_index}:\n")
+    #         for text in land_texts:
+    #             f.write(f"    {text}\n")
 
         f.write(f"Parse result:\n")
         for building_index, building_texts in enumerate(buildings_texts):
             if len(building_texts) > 0:
                 f.write(f"  Building column {building_index}: {building_texts[0]}\n")
-                parsed_building = building_texts[0]
-        for total_index, total_texts in enumerate(totals_texts):
-            if len(total_texts) > 0:
-                f.write(f"  Total column {total_index}: {total_texts[0]}\n")
-                parsed_total = total_texts[0]
+                result.initial_building_value = int(building_texts[0])
+    #     for land_index, land_texts in enumerate(lands_texts):
+    #         if len(land_texts) > 0:
+    #             f.write(f"  Land column {land_index}: {land_texts[0]}\n")
+    #             result.initial_land_value = land_texts[0]
 
-    return (parsed_building, parsed_total)
+    return result
 
 parcels = []
 
@@ -209,20 +229,74 @@ for file in os.listdir(input_dir):
 parcels.sort()
 # parcels = ["0180001007300"]
 
-results = []
-for parcel in parcels:
+targets: dict[str, TargetLabel] = {}
+
+with open("Dataset/Ownership/buildings.csv", "r") as f:
+    building_labels = csv.DictReader(f)
+
+    for row in building_labels:
+        parcel = row["parcel"]
+        building_value = row["value"]
+
+        if building_value:
+            label = TargetLabel(parcel)
+            label.initial_building_value = int(building_value)
+            targets[parcel] = label
+
+with open("Dataset/Ownership/land.csv", "r") as f:
+    land_labels = csv.DictReader(f)
+
+    for row in land_labels:
+        parcel = row["parcel"]
+        land_value = row["value"]
+
+        if land_value:
+            if parcel in targets:
+                targets[parcel].initial_land_value = int(land_value)
+            else:
+                label = TargetLabel(parcel)
+                label.initial_land_value = int(land_value)
+                targets[parcel] = label
+
+# for target in targets.values():
+#     print(f"Parcel: {target.parcel}, Land: {target.initial_land_value}, Building: {target.initial_building_value}")
+
+results: list[ParcelResult] = []
+
+for i in tqdm(range(80)):
+    parcel = parcels[i]
     start = time.time()
-    building, total = parse_parcel(parcel)
+    result = parse_parcel(parcel)
     end = time.time()
-    print(f"Parcel {parcel} Building: {building} Total: {total} - {end-start:.3f}s")
-    results.append((parcel, building, total))
+    print(f"Parcel {parcel} Building: {result.initial_building_value} Land: {result.initial_land_value} - {end-start:.3f}s")
+    results.append(result)
 
     # Only process 80 entries for now
     if len(results) == 80:
         break
 
-with open(f"{log_dir}/ocr.log", "w") as f:
-    for (parcel, building, total) in results:
-        f.write(f"{parcel},{building},{total}\n")
+# with open(f"{log_dir}/ocr.log", "w") as f:
+#     for (parcel, building, total) in results:
+#         f.write(f"{parcel},{building},{total}\n")
 
+land_recognized = sum(1 if len(r.land_indicies) > 0 else 0 for r in results)
+building_recognized = sum(1 if len(r.building_indicies) > 0 else 0 for r in results)
+total_recognized = sum(1 if len(r.total_indicies) > 0 else 0 for r in results)
+any_recognized = sum(1 if (len(r.land_indicies) > 0 or len(r.building_indicies) > 0 or len(r.total_indicies) > 0) else 0 for r in results)
+multiple_land_recognized = sum(1 if len(r.land_indicies) > 1 else 0 for r in results)
+multiple_building_recognized = sum(1 if len(r.building_indicies) > 1 else 0 for r in results)
+multiple_total_recognized = sum(1 if len(r.total_indicies) > 1 else 0 for r in results)
+building_accurate = 0
+for r in results:
+    if r.parcel in targets:
+        target_value = targets[r.parcel].initial_building_value
+        parsed_value = r.initial_building_value
+        if isclose(target_value, parsed_value, rel_tol=0.2):
+            building_accurate += 1
+
+print(f"Statistics:")
+print(f"Total parcels processed: {len(results)}")
+print(f"Recognized land: {land_recognized}, building: {building_recognized}, total: {total_recognized}, any: {any_recognized}")
+print(f"Errors multiple land: {multiple_land_recognized}, multiple building: {multiple_building_recognized}, multiple total: {multiple_total_recognized}")
+print(f"Accurate building: {building_accurate}")
 

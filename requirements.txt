@@ -5,3 +5,4 @@ psycopg2
 opencv-python
 pytesseract
 imutils
+tqdm
