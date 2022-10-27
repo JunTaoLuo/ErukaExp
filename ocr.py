@@ -65,18 +65,22 @@ def binarize_image(img):
     thresh_image = cv2.convertScaleAbs(thresh_image) # converting the scale
     return thresh_image
 
+def get_entries_core(building_left, building_top, building_width, d):
+    column_entries = []
+    # print(f"column left: {building_left}, right: {building_left + building_width}, top: {building_top}")
+    for i in range(len(d['text'])):
+        if building_left - building_width*width_tolerance < d['left'][i] and building_left + building_width > d['left'][i] and building_top < d['top'][i]:
+            if min_entry_width < d['width'][i] and d['width'][i] < max_entry_width:
+                # print(f"entry left: {d['left'][i]} top: {d['top'][i]} width: {d['width'][i]}")
+                column_entries.append(i)
+
+    column_entries.sort(key=lambda b: d['top'][b])
+    return column_entries
+
 def get_entries(column_header_indicies, d):
     all_entries = []
     for columns_i in column_header_indicies:
-        column_entries = []
-        # print(f"column left: {d['left'][columns_i]}, right: {d['left'][columns_i] + d['width'][columns_i]}, top: {d['top'][columns_i]}")
-        for i in range(len(d['text'])):
-            if d['left'][columns_i] - d['width'][columns_i]*width_tolerance < d['left'][i] and d['left'][columns_i] + d['width'][columns_i] > d['left'][i] and d['top'][columns_i] < d['top'][i]:
-                if min_entry_width < d['width'][i] and d['width'][i] < max_entry_width:
-                    # print(f"entry left: {d['left'][i]} top: {d['top'][i]} width: {d['width'][i]}")
-                    column_entries.append(i)
-
-        column_entries.sort(key=lambda b: d['top'][b])
+        column_entries = get_entries_core(d['left'][columns_i], d['top'][columns_i], d['width'][columns_i], d)
         all_entries.append(column_entries)
     return all_entries
 
@@ -101,7 +105,6 @@ def get_entry_texts(entries_list2D, d):
         while i < len(entry_list):
             # From inspection, each row has a height of about 50
             # print(f"text: {d['text'][i]} left: {d['left'][i]}, right: {d['left'][i] + d['width'][i]}, top: {d['top'][i]}")
-
 
             row_top = d['top'][entry_list[i]]
             row_entries = [entry_list[i]]
@@ -165,7 +168,8 @@ class ParcelResult():
         self.building_indicies = []
         self.land_indicies = []
         self.total_indicies = []
-        self.inferred_building_indicies = False
+        self.inferred_building = False
+        self.inferred_building_coordinates = None
         self.initial_building_value = 0
         self.initial_land_value = 0
 
@@ -216,12 +220,22 @@ def parse_parcel(parcel) -> ParcelResult:
     buildings_entries = get_entries(result.building_indicies, d)
     # lands_entries = get_entries(result.land_indicies, d)
 
+    if len(result.building_indicies) == 0 and len(result.total_indicies) > 0:
+        result.inferred_building = True
+        # From inspection left is about 200 less than total's left, tops are the same, and width is 127
+        inferred_left = d['left'][result.total_indicies[0]] - 200
+        inferred_top = d['top'][result.total_indicies[0]]
+        inferred_width = 127
+        result.inferred_building_coordinates = (inferred_left, inferred_top, inferred_width)
+        buildings_entries = [get_entries_core(inferred_left, inferred_top, inferred_width, d)]
+
     img = mark_indicies_list2D(buildings_entries, img, d)
     # img = mark_indicies_list2D(lands_entries, img, d)
 
     cv2.imwrite(f'{output_dir}/{parcel}.jpg', img)
 
     buildings_texts_raw = get_entry_texts(buildings_entries, d)
+
     # lands_texts_raw = get_entry_texts(lands_entries, d)
 
     buildings_texts = filter_entry_texts(buildings_texts_raw)
@@ -230,6 +244,10 @@ def parse_parcel(parcel) -> ParcelResult:
     with open(f'{output_dir}/{parcel}.log', "w") as f:
         f.write(f"Found buildings: {len(result.building_indicies)}\n")
     #     f.write(f"Found land: {len(result.land_indicies)}\n")
+
+        if result.inferred_building:
+            left, top, width = result.inferred_building_coordinates
+            f.write(f"Inferred building coordinates left: {left} top: {top} width: {width}\n")
 
         f.write(f"Raw text:\n")
         for building_index, building_texts in enumerate(buildings_texts_raw):
@@ -261,8 +279,10 @@ def parse_parcel(parcel) -> ParcelResult:
     #             f.write(f"  Land column {land_index}: {land_texts[0]}\n")
     #             result.initial_land_value = land_texts[0]
 
-    # if len(result.building_indicies) > 0 or len(result.total_indicies) > 0:
-        # print(f"building left: {d['left'][result.building_indicies[0]]} top: {d['top'][result.building_indicies[0]]} width: {d['width'][result.building_indicies[0]]} total left: {d['left'][result.total_indicies[0]]} top: {d['top'][result.total_indicies[0]]} width: {d['width'][result.total_indicies[0]]}")
+    # if len(result.building_indicies) > 0:
+    #     print(f"building left: {d['left'][result.building_indicies[0]]} top: {d['top'][result.building_indicies[0]]} width: {d['width'][result.building_indicies[0]]}")
+    # if len(result.total_indicies) > 0:
+    #     print(f"total left: {d['left'][result.total_indicies[0]]} top: {d['top'][result.total_indicies[0]]} width: {d['width'][result.total_indicies[0]]}")
 
     return result
 
@@ -325,6 +345,7 @@ land_recognized = sum(1 if len(r.land_indicies) > 0 else 0 for r in results)
 building_recognized = sum(1 if len(r.building_indicies) > 0 else 0 for r in results)
 total_recognized = sum(1 if len(r.total_indicies) > 0 else 0 for r in results)
 any_recognized = sum(1 if (len(r.building_indicies) > 0 or len(r.total_indicies) > 0) else 0 for r in results)
+building_inferred = sum(1 if r.inferred_building > 0 else 0 for r in results)
 multiple_land_recognized = sum(1 if len(r.land_indicies) > 1 else 0 for r in results)
 multiple_building_recognized = sum(1 if len(r.building_indicies) > 1 else 0 for r in results)
 multiple_total_recognized = sum(1 if len(r.total_indicies) > 1 else 0 for r in results)
@@ -342,6 +363,7 @@ for r in results:
 print(f"Statistics:")
 print(f"Total parcels processed: {len(results)}")
 print(f"Recognized land: {land_recognized}, building: {building_recognized}, total: {total_recognized}, any: {any_recognized}")
+print(f"Inferred building: {building_inferred}")
 print(f"Parsed building: {building_value_parsed}")
 print(f"Errors multiple land: {multiple_land_recognized}, multiple building: {multiple_building_recognized}, multiple total: {multiple_total_recognized}")
 print(f"Accurate building: {building_accurate}")
