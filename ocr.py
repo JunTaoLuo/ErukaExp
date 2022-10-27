@@ -96,16 +96,51 @@ def mark_indicies_list2D(indicies_list2D, img, d):
 def get_entry_texts(entries_list2D, d):
     all_texts = []
     for entry_list in entries_list2D:
+        i = 0
         entry_text = []
-        for i in entry_list:
-            entry_text.append(d['text'][i])
+        while i < len(entry_list):
+            # From inspection, each row has a height of about 50
+            # print(f"text: {d['text'][i]} left: {d['left'][i]}, right: {d['left'][i] + d['width'][i]}, top: {d['top'][i]}")
+
+
+            row_top = d['top'][entry_list[i]]
+            row_entries = [entry_list[i]]
+            i += 1
+
+            # Append indicies that are in the same row
+            while i < len(entry_list):
+                if d['top'][entry_list[i]] < row_top + 10:
+                    row_entries.append(entry_list[i])
+                else:
+                    break
+                i += 1
+
+            # Sort in left to right order
+            row_entries.sort(key=lambda x: d['left'][x])
+
+            # Construct row text
+            row_text = ""
+            for element_index in row_entries:
+                row_text += d['text'][element_index]
+
+            # Add row text
+            entry_text.append(row_text)
+
         all_texts.append(entry_text)
     return all_texts
 
 def filter_entry_texts(entries_list2D):
     # TODO: Add more entries here
     substitutions = {
-        "$": "5"
+        "G": "6",
+        "$": "5",
+        "¥": "4",
+        "(": "1",
+        "/": "1",
+        "I": "1",
+        "o": "0",
+        "O": "0",
+        "D": "0",
     }
     match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     all_texts = []
@@ -130,6 +165,7 @@ class ParcelResult():
         self.building_indicies = []
         self.land_indicies = []
         self.total_indicies = []
+        self.inferred_building_indicies = False
         self.initial_building_value = 0
         self.initial_land_value = 0
 
@@ -225,6 +261,9 @@ def parse_parcel(parcel) -> ParcelResult:
     #             f.write(f"  Land column {land_index}: {land_texts[0]}\n")
     #             result.initial_land_value = land_texts[0]
 
+    # if len(result.building_indicies) > 0 or len(result.total_indicies) > 0:
+        # print(f"building left: {d['left'][result.building_indicies[0]]} top: {d['top'][result.building_indicies[0]]} width: {d['width'][result.building_indicies[0]]} total left: {d['left'][result.total_indicies[0]]} top: {d['top'][result.total_indicies[0]]} width: {d['width'][result.total_indicies[0]]}")
+
     return result
 
 parcels = []
@@ -234,7 +273,7 @@ for file in os.listdir(input_dir):
     parcels.append(parcel)
 
 parcels.sort()
-# parcels = ["0180001007300"]
+# parcels = ["0390003004600"]
 
 targets: dict[str, TargetLabel] = {}
 
@@ -270,7 +309,7 @@ with open("Dataset/Ownership/land.csv", "r") as f:
 
 results: list[ParcelResult] = []
 
-for i in tqdm(range(20)):
+for i in tqdm(range(80)):
     parcel = parcels[i]
     start = time.time()
     result = parse_parcel(parcel)
@@ -285,7 +324,7 @@ for i in tqdm(range(20)):
 land_recognized = sum(1 if len(r.land_indicies) > 0 else 0 for r in results)
 building_recognized = sum(1 if len(r.building_indicies) > 0 else 0 for r in results)
 total_recognized = sum(1 if len(r.total_indicies) > 0 else 0 for r in results)
-any_recognized = sum(1 if (len(r.land_indicies) > 0 or len(r.building_indicies) > 0 or len(r.total_indicies) > 0) else 0 for r in results)
+any_recognized = sum(1 if (len(r.building_indicies) > 0 or len(r.total_indicies) > 0) else 0 for r in results)
 multiple_land_recognized = sum(1 if len(r.land_indicies) > 1 else 0 for r in results)
 multiple_building_recognized = sum(1 if len(r.building_indicies) > 1 else 0 for r in results)
 multiple_total_recognized = sum(1 if len(r.total_indicies) > 1 else 0 for r in results)
@@ -306,4 +345,3 @@ print(f"Recognized land: {land_recognized}, building: {building_recognized}, tot
 print(f"Parsed building: {building_value_parsed}")
 print(f"Errors multiple land: {multiple_land_recognized}, multiple building: {multiple_building_recognized}, multiple total: {multiple_total_recognized}")
 print(f"Accurate building: {building_accurate}")
-
