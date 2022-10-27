@@ -103,16 +103,23 @@ def get_entry_texts(entries_list2D, d):
     return all_texts
 
 def filter_entry_texts(entries_list2D):
-    match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", ","]
+    # TODO: Add more entries here
+    substitutions = {
+        "$": "5"
+    }
+    match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     all_texts = []
     for entry_list in entries_list2D:
         entry_texts = []
         for text_raw in entry_list:
             if text_raw:
-                matched = [c in match_list for c in text_raw]
-                if all(matched):
-                    filtered_text = text_raw.replace(",", "")
-                    filtered_text = filtered_text.replace(".", "")
+                filtered_text = ""
+                for char in text_raw:
+                    if char in match_list:
+                        filtered_text += char
+                    if char in substitutions:
+                        filtered_text += substitutions[char]
+                if filtered_text:
                     entry_texts.append(filtered_text)
         all_texts.append(entry_texts)
     return all_texts
@@ -150,7 +157,7 @@ def parse_parcel(parcel) -> ParcelResult:
     # img = cv2.Canny(img,0,200) # Edge detection also doesn't really help
 
     d = pytesseract.image_to_data(img, output_type=Output.DICT)
-    # d = pytesseract.image_to_data(img, output_type=Output.DICT, config="-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    # d = pytesseract.image_to_data(img, output_type=Output.DICT, config="-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
     # print(d.keys())
     # print(d['text'])
@@ -263,17 +270,13 @@ with open("Dataset/Ownership/land.csv", "r") as f:
 
 results: list[ParcelResult] = []
 
-for i in tqdm(range(80)):
+for i in tqdm(range(20)):
     parcel = parcels[i]
     start = time.time()
     result = parse_parcel(parcel)
     end = time.time()
     print(f"Parcel {parcel} Building: {result.initial_building_value} Land: {result.initial_land_value} - {end-start:.3f}s")
     results.append(result)
-
-    # Only process 80 entries for now
-    if len(results) == 80:
-        break
 
 # with open(f"{log_dir}/ocr.log", "w") as f:
 #     for (parcel, building, total) in results:
@@ -286,6 +289,7 @@ any_recognized = sum(1 if (len(r.land_indicies) > 0 or len(r.building_indicies) 
 multiple_land_recognized = sum(1 if len(r.land_indicies) > 1 else 0 for r in results)
 multiple_building_recognized = sum(1 if len(r.building_indicies) > 1 else 0 for r in results)
 multiple_total_recognized = sum(1 if len(r.total_indicies) > 1 else 0 for r in results)
+building_value_parsed = sum(1 if r.initial_building_value > 0 else 0 for r in results)
 building_accurate = 0
 for r in results:
     if r.parcel in targets:
@@ -293,10 +297,13 @@ for r in results:
         parsed_value = r.initial_building_value
         if isclose(target_value, parsed_value, rel_tol=0.2):
             building_accurate += 1
+        else:
+            print(f"Inaccurate OCR result for parcel: {r.parcel}, target: {target_value} result: {parsed_value}")
 
 print(f"Statistics:")
 print(f"Total parcels processed: {len(results)}")
 print(f"Recognized land: {land_recognized}, building: {building_recognized}, total: {total_recognized}, any: {any_recognized}")
+print(f"Parsed building: {building_value_parsed}")
 print(f"Errors multiple land: {multiple_land_recognized}, multiple building: {multiple_building_recognized}, multiple total: {multiple_total_recognized}")
 print(f"Accurate building: {building_accurate}")
 
