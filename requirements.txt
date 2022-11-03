@@ -6,3 +6,5 @@ opencv-python
 pytesseract
 imutils
 tqdm
+transformers
+torch
