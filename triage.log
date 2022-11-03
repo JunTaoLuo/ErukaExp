@@ -1,0 +1,45 @@
+
+Tesseract not confident, but correct, TrOCR inccorect:
+3
+0260001006700
+2260004010700
+5000040011400
+
+Tesseract confident but incorrect
+4
+0510010009100
+5000112001300
+5000112017400
+5100071046000
+
+Tesseract and TrOCR both failed to recognize digits:
+5
+1210001038000
+1820005011600
+5000201015700
+5100071013200
+5100073017500
+
+Tesseract bad segmentation
+8
+0530006000800
+1210001013300
+2100078001100
+5000045018500
+5000045024300
+5000124020000
+5000301009100
+5100140005000
+
+
+Tesseract not confident, but correct, TrOCR inccorect:
+3
+
+Tesseract confident but incorrect
+5
+
+Tesseract and TrOCR both failed to recognize digits:
+5
+
+Tesseract bad segmentation
+7
