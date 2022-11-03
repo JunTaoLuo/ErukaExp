@@ -99,9 +99,11 @@ def mark_indicies_list2D(indicies_list2D, img, d):
 
 def get_entry_texts(entries_list2D, d):
     all_texts = []
+    all_confidence = []
     for entry_list in entries_list2D:
         i = 0
         entry_text = []
+        entry_confidence = []
         while i < len(entry_list):
             # From inspection, each row has a height of about 50
             # print(f"text: {d['text'][i]} left: {d['left'][i]}, right: {d['left'][i] + d['width'][i]}, top: {d['top'][i]}")
@@ -123,16 +125,21 @@ def get_entry_texts(entries_list2D, d):
 
             # Construct row text
             row_text = ""
+            row_confidence = 0.0
             for element_index in row_entries:
                 row_text += d['text'][element_index]
+                row_confidence += d['conf'][element_index]
+            confidence = row_confidence / len(row_entries)
 
             # Add row text
             entry_text.append(row_text)
+            entry_confidence.append(confidence)
 
         all_texts.append(entry_text)
-    return all_texts
+        all_confidence.append(entry_confidence)
+    return all_texts, all_confidence
 
-def filter_entry_texts(entries_list2D):
+def filter_entry_texts(entries_list2D, entries_conf_list2D):
     # TODO: Add more entries here
     substitutions = {
         "G": "6",
@@ -147,9 +154,11 @@ def filter_entry_texts(entries_list2D):
     }
     match_list = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     all_texts = []
-    for entry_list in entries_list2D:
+    all_conf = []
+    for entriesIndex, entry_list in enumerate(entries_list2D):
         entry_texts = []
-        for text_raw in entry_list:
+        entry_conf = []
+        for index, text_raw in enumerate(entry_list):
             if text_raw:
                 filtered_text = ""
                 for char in text_raw:
@@ -159,8 +168,10 @@ def filter_entry_texts(entries_list2D):
                         filtered_text += substitutions[char]
                 if filtered_text:
                     entry_texts.append(filtered_text)
+                    entry_conf.append(entries_conf_list2D[entriesIndex][index])
         all_texts.append(entry_texts)
-    return all_texts
+        all_conf.append(entry_conf)
+    return all_texts, all_conf
 
 class ParcelResult():
     def __init__(self, parcel) -> None:
@@ -171,6 +182,7 @@ class ParcelResult():
         self.inferred_building = False
         self.inferred_building_coordinates = None
         self.initial_building_value = 0
+        self.initial_building_value_confidence = 0.0
         self.initial_land_value = 0
 
 class TargetLabel():
@@ -234,11 +246,11 @@ def parse_parcel(parcel) -> ParcelResult:
 
     cv2.imwrite(f'{output_dir}/{parcel}.jpg', img)
 
-    buildings_texts_raw = get_entry_texts(buildings_entries, d)
+    buildings_texts_raw, buildings_texts_raw_conf = get_entry_texts(buildings_entries, d)
 
     # lands_texts_raw = get_entry_texts(lands_entries, d)
 
-    buildings_texts = filter_entry_texts(buildings_texts_raw)
+    buildings_texts, buildings_texts_conf = filter_entry_texts(buildings_texts_raw, buildings_texts_raw_conf)
     # lands_texts = filter_entry_texts(lands_texts_raw)
 
     with open(f'{output_dir}/{parcel}.log', "w") as f:
@@ -252,8 +264,8 @@ def parse_parcel(parcel) -> ParcelResult:
         f.write(f"Raw text:\n")
         for building_index, building_texts in enumerate(buildings_texts_raw):
             f.write(f"  Building column {building_index}:\n")
-            for text in building_texts:
-                f.write(f"    {text}\n")
+            for text_index, text in enumerate(building_texts):
+                f.write(f"    {text}({buildings_texts_raw_conf[building_index][text_index]})\n")
     #     for land_index, land_texts in enumerate(lands_texts_raw):
     #         f.write(f"  Land column {land_index}:\n")
     #         for text in land_texts:
@@ -262,8 +274,8 @@ def parse_parcel(parcel) -> ParcelResult:
         f.write(f"Filtered text:\n")
         for building_index, building_texts in enumerate(buildings_texts):
             f.write(f"  Building column {building_index}:\n")
-            for text in building_texts:
-                f.write(f"    {text}\n")
+            for text_index, text in enumerate(building_texts):
+                f.write(f"    {text}({buildings_texts_conf[building_index][text_index]})\n")
     #     for land_index, land_texts in enumerate(lands_texts):
     #         f.write(f"  Land column {land_index}:\n")
     #         for text in land_texts:
@@ -274,6 +286,7 @@ def parse_parcel(parcel) -> ParcelResult:
             if len(building_texts) > 0:
                 f.write(f"  Building column {building_index}: {building_texts[0]}\n")
                 result.initial_building_value = int(building_texts[0])
+                result.initial_building_value_confidence = buildings_texts_conf[building_index][0]
     #     for land_index, land_texts in enumerate(lands_texts):
     #         if len(land_texts) > 0:
     #             f.write(f"  Land column {land_index}: {land_texts[0]}\n")
@@ -351,14 +364,22 @@ multiple_building_recognized = sum(1 if len(r.building_indicies) > 1 else 0 for 
 multiple_total_recognized = sum(1 if len(r.total_indicies) > 1 else 0 for r in results)
 building_value_parsed = sum(1 if r.initial_building_value > 0 else 0 for r in results)
 building_accurate = 0
+
+correct_results = ""
+incorrect_results = ""
+
 for r in results:
     if r.parcel in targets:
         target_value = targets[r.parcel].initial_building_value
         parsed_value = r.initial_building_value
         if isclose(target_value, parsed_value, rel_tol=0.2):
             building_accurate += 1
+            correct_results += f"Accurate OCR result for parcel: {r.parcel}, target: {target_value} result: {parsed_value} confidence: {r.initial_building_value_confidence}\n"
         else:
-            print(f"Inaccurate OCR result for parcel: {r.parcel}, target: {target_value} result: {parsed_value}")
+            incorrect_results += f"Inaccurate OCR result for parcel: {r.parcel}, target: {target_value} result: {parsed_value} confidence: {r.initial_building_value_confidence}\n"
+
+print(correct_results)
+print(incorrect_results)
 
 print(f"Statistics:")
 print(f"Total parcels processed: {len(results)}")
