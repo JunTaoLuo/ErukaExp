@@ -106,6 +106,18 @@ select count(distinct pt.parcelid)
 from cleaned.property_transfer pt left join cleaned.monthly_tax mt on upper(pt.parcelid) = mt.parcelid
 where mt.parcelid is null;
 
+select extract(year from date_of_sale) "year_of_sale", count(distinct pt.parcelid)
+from cleaned.property_transfer pt left join cleaned.monthly_tax mt on upper(pt.parcelid) = mt.parcelid
+where mt.parcelid is null
+group by extract(year from date_of_sale);
+
+select num_parcels_sold, count(distinct pt.parcelid)
+from cleaned.property_transfer pt left join cleaned.monthly_tax mt on upper(pt.parcelid) = mt.parcelid
+where mt.parcelid is null
+group by num_parcels_sold;
+
+
+
 select pt.parcelid, num_parcels_sold, date_of_sale, property_class, building_value, land_value, sale_price, valid_sale, deed_type, conveyance_no, is_new
 from cleaned.property_transfer pt left join cleaned.monthly_tax mt on upper(pt.parcelid) = mt.parcelid
 where mt.parcelid is null
@@ -136,4 +148,6 @@ where building_value = 0 and land_value = 0
 and property_class != '   '
 and property_class::INT in (510, 550, 520, 401, 530, 625, 404, 470)
 order by parcelid, date_of_sale;
+
+
 

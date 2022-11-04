@@ -54,6 +54,23 @@ update cleaned.property_transfer
 alter table cleaned.property_transfer
 	alter column property_class type int using(property_class::int);
 
+-- Cleaning num_parcels_sold
+update cleaned.property_transfer
+	set num_parcels_sold = null
+	where num_parcels_sold = '  ' or num_parcels_sold = ' ';
+
+update cleaned.property_transfer 
+	set num_parcels_sold = replace(num_parcels_sold, '"', '');
+
+alter table cleaned.property_transfer 
+	alter column num_parcels_sold type float using(num_parcels_sold::float);
+
+update cleaned.property_transfer
+	set num_parcels_sold = round(num_parcels_sold);
+
+alter table cleaned.property_transfer 
+	alter column num_parcels_sold type int using(num_parcels_sold::int);
+
 -- Creating is-new flag for property transfer (right now stored in land_value)
 alter table cleaned.property_transfer 
 	add column is_new int;
@@ -97,9 +114,6 @@ alter table cleaned.historic_sales
 alter table cleaned.rental_registration 
 	rename column raw_parcel_number to parcelid;
 
--- Todo: think about duplicate IDs in BuildingInfo
-
--- Todo: Declare parcelid as either index or primary key in data
 -- Creating indices on parcelid for better merging
 alter table cleaned.monthly_tax add primary key (parcelid);
 alter table cleaned.historic_sales add primary key (parcelid);
