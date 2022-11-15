@@ -102,6 +102,33 @@ update cleaned.historic_sales
 alter table cleaned.building_info 
 	rename column "PARCELID" to parcelid;
 
+alter table cleaned.building_info
+	rename column "ATTIC_SQFT" to attic_sqft;
+
+alter table cleaned.building_info
+	rename column "BSMT_SQFT" to bsmt_sqft;
+
+alter table cleaned.building_info
+	rename column "LIVE_FSQFT" to live_sqft;
+
+alter table cleaned.building_info
+	rename column "SQFT" to sqft;
+
+alter table cleaned.building_info
+	rename column "SQFT_FLR1" to sqft_flr1;
+
+alter table cleaned.building_info
+	rename column "SQFT_FLR2" to sqft_flr2;
+
+alter table cleaned.building_info
+	rename column "SQFT_FLRH" to sqft_flrh;
+
+alter table cleaned.building_info
+	rename column "STORYHT" to story_ht;
+	
+alter table cleaned.building_info
+	rename column "YEARBUILT" to year_built;
+
 update cleaned.building_info 
 	set parcelid = upper(parcelid);
 

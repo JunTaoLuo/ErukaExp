@@ -6,14 +6,28 @@ drop table if exists processed.rental_registration;
 
 drop schema if exists processed;
 
+create schema processed;
+
 -- creating tables only choosing relevant prop class codes
-create table processed.building_info as (select * from cleaned.building_info);
-create table processed.historic_sales as (select * from cleaned.historic_sales);
+
+-- Join only keeps the buildings that merge into monthlytax
+create table processed.building_info as 
+	(select bi.*, mt.prop_class_code, mt.class_description 
+	from cleaned.building_info bi join cleaned.monthly_tax mt on bi.parcelid = mt.parcelid
+	where mt.prop_class_code in ({class_codes}) 
+	);
+
+-- Join only keeps the parcels that merge into monthlytax
+create table processed.historic_sales as 
+	(select hs.*, mt.prop_class_code, mt.class_description 
+	 from cleaned.historic_sales hs join cleaned.monthly_tax mt on hs.parcelid = mt.parcelid
+	 where mt.prop_class_code in ({class_codes})
+	 );
 create table processed.monthly_tax as (select * from cleaned.monthly_tax);
 create table processed.property_transfer as (select * from cleaned.property_transfer);
 create table processed.rental_registration as (select * from cleaned.rental_registration);
 
--- Deal with duplicates in parcelid by assigning a building id 
+-- Deal with duplicates in parcelid by assigning a building id (to be reshaped based on this ID in Python script)
 alter table processed.building_info
 	add column building_id int,
 	add column tot_buildings int;
@@ -35,11 +49,15 @@ update processed.building_info bi
 	where bi.parcelid = bi2.parcelid;
 
 -- Filling in live_sqft = sum of all other square footage if sum > 0 and live_fsqft is zero
-update processed.building_info
-	set "LIVE_FSQFT" = ("SQFT_FLR1" + "SQFT_FLR2" + "ATTIC_SQFT") -- note: this logic holds for most of the data
-	where "LIVE_FSQFT" = 0;
+update processed.building_info bi
+	set live_sqft = (sqft_flr1 + sqft_flr2 + attic_sqft) -- note: this logic holds for most of the data
+	where bi.live_sqft = 0;
 
 -- Removing rows that are not secondary/tertiary buildings on the parcel, and have zero on all columns (likely torn down structures)
 delete from processed.building_info
-	where ("LIVE_FSQFT" + "ATTIC_SQFT" + "SQFT_FLR1" + "SQFT_FLR2" + "SQFT_FLRH") = 0
+	where (live_sqft + attic_sqft + sqft_flr1 + sqft_flr2 + sqft_flrh) = 0
 	and tot_buildings = 1;
+
+-- Dropping unnecessary columns in the datasets
+alter table processed.building_info
+	drop column sqft;
