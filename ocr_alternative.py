@@ -1,3 +1,9 @@
+'''
+TODO:
+- Add logging statements to print to log
+- Add parameters to class to store intermediate results to identify where the problem is, and print those
+'''
+
 from math import isclose
 import time
 import csv
@@ -118,6 +124,9 @@ def crop_building_column(img, building_indices, land_indices, total_indices, d):
         y0 = 540
         y1 = 850
 
+    # Return dimensions of image
+    print(img[y0:y1, x0:x1])
+
     # Crop image based on parameters
     return img[y0:y1, x0:x1]
 
@@ -142,6 +151,8 @@ def hough_line_detection(img):
     tested_angles = np.linspace(-np.pi, np.pi, 360, endpoint = False)
     h, theta, d = hough_line(edges, theta = tested_angles)
     hspace, angles, dists = hough_line_peaks(h, theta, d, thresh, min_distance)
+
+    print(f"Found {len(angles)} lines")
 
     return hspace, angles, dists
 
@@ -191,6 +202,7 @@ def find_line_intersections(hspace, angles, dists, img):
     # Subset intersection points to only the relevant ones that fall within the boundaries of the image
     relevant_intersects = [[x[0], x[1]] for x in intersections if (x[0] >= 0 and x[0] <= img.shape[0]) and (x[1] >= 0 and x[1] <= img.shape[1])]
 
+    print(f'Found {len(relevant_intersects)} relevant intersection points')
     return relevant_intersects
 
 def get_box_params(intersections, img):
@@ -203,71 +215,94 @@ def get_box_params(intersections, img):
             - x, y: coordinates of topleft corner
             - w, h, s: width, height, and slant of the column
     '''
-    # Sort intersections from top to bottom on the page
-    rinter = intersections
-    rinter.sort(key = lambda x: x[1]) 
-
-    # Get differences between each intersection and the one before
-    x_ax_diffs = np.array([round(rinter[i+1][0] - rinter[i][0], 3) for i in range(len(rinter)-1)])
-    y_ax_diffs = np.array([round(rinter[i+1][1] - rinter[i][1], 3) for i in range(len(rinter)-1)])
-
-    ###### Width ########
-
-    # Get width of box by looking at x_ax_diffs -> something within range of 150 - 250
-    lower_bound_width = 150
-    upper_bound_width = 200
-
-    width_candidates = x_ax_diffs[(abs(x_ax_diffs) >= lower_bound_width) & (abs(x_ax_diffs) <= upper_bound_width)]
-
-    # Select the one with the max value
-    w_final = np.max(abs(width_candidates))
-
-    # Check that this value is consistent; i.e., at least 4 different widths are within some error range of this
-    tolerance = 5 # count width values that fall within 5 pixels of w_final
-    close_count_w = len(width_candidates[np.where(abs(abs(width_candidates) - w_final) < tolerance)])
-
-    if close_count_w < 4:
-        # If it isn't consistent, just pick a default value that's a rough estimate
+    # Check if length of the intersections is small, then just assign default bbox params:
+    if len(intersections) < 5:
         w_final = 180
-    # Else, just stick with the w_final we got using this method
-
-    ###### Height ########
-
-    # Get height of box by looking at diff in y_axis between 35-70
-    lower_bound_height = 35
-    upper_bound_height = 70
-
-    tolerance = 5
-
-    height_candidates = y_ax_diffs[(abs(y_ax_diffs) >= lower_bound_height) & (abs(y_ax_diffs) <= upper_bound_height)]
-
-    h_final = np.max(abs(height_candidates))
-
-    close_count_h = len(height_candidates[np.where(abs(abs(height_candidates) - h_final) < tolerance)])
-
-    if close_count_h < 4:
-        # Similar methodology as above: if we can't find a consistent answer, then use a rough approx
         h_final = 55
-
-    ###### Slant ########
-    y_ax_slant = np.round(y_ax_diffs, 1)
-
-    slant_candidates = y_ax_slant[(abs(y_ax_slant) < 5) & (y_ax_slant != 0)]
-
-    slant_final = np.max(slant_candidates) # not absolute value because slant can either be positive or negative
-
-    close_count_s = len(slant_candidates[np.where(abs(slant_candidates) - abs(slant_final) < tolerance)])
-
-    if close_count_s < 3:
         slant_final = 3
-
-    ###### Top-left corner pixel coordinates ########
-    rinter.sort(key = lambda x: (x[1], x[0]))
-    topleft = rinter[0]
-
-    # If the coordinate isn't within reasonable values, then assign it roughly
-    if topleft[0] < 45 or topleft[0] > 60 or topleft[1] > 10:
         topleft = [53, 5]
+
+    else:
+        # Sort intersections from top to bottom on the page
+        rinter = intersections
+        rinter.sort(key = lambda x: x[1]) 
+
+        # Get differences between each intersection and the one before
+        x_ax_diffs = np.array([round(rinter[i+1][0] - rinter[i][0], 3) for i in range(len(rinter)-1)])
+        y_ax_diffs = np.array([round(rinter[i+1][1] - rinter[i][1], 3) for i in range(len(rinter)-1)])
+
+        ###### Width ########
+
+        # Get width of box by looking at x_ax_diffs -> something within range of 150 - 250
+        lower_bound_width = 100
+        upper_bound_width = 300
+
+        width_candidates = x_ax_diffs[(abs(x_ax_diffs) >= lower_bound_width) & (abs(x_ax_diffs) <= upper_bound_width)]
+
+        if len(width_candidates) < 4:
+            # If we can't find reasonable-looking widths default value that's a rough estimate
+            w_final=180
+
+        else:
+            # Select the one with the max value
+            w_final = np.max(abs(width_candidates))
+
+            # Check that this value is consistent; i.e., at least 4 different widths are within some error range of this
+            tolerance = 5 # count width values that fall within 5 pixels of w_final
+            close_count_w = len(width_candidates[np.where(abs(abs(width_candidates) - w_final) < tolerance)])
+
+            if close_count_w < 4:
+                # If it isn't consistent, just pick a default value that's a rough estimate
+                w_final = 180
+            # Else, just stick with the w_final we got using this method
+
+        ###### Height ########
+
+        # Get height of box by looking at diff in y_axis between 35-70
+        lower_bound_height = 35
+        upper_bound_height = 70
+
+        tolerance = 5
+
+        height_candidates = y_ax_diffs[(abs(y_ax_diffs) >= lower_bound_height) & (abs(y_ax_diffs) <= upper_bound_height)]
+
+        if len(height_candidates) < 4:
+            h_final = 55
+        
+        else:
+
+            h_final = np.max(abs(height_candidates))
+
+            close_count_h = len(height_candidates[np.where(abs(abs(height_candidates) - h_final) < tolerance)])
+
+            if close_count_h < 4:
+                # Similar methodology as above: if we can't find a consistent answer, then use a rough approx
+                h_final = 55
+
+        ###### Slant ########
+        y_ax_slant = np.round(y_ax_diffs, 1)
+
+        slant_candidates = y_ax_slant[(abs(y_ax_slant) < 5) & (y_ax_slant != 0)]
+
+        if len(slant_candidates) < 3:
+            slant_final = 3
+
+        else:
+            slant_final = np.max(slant_candidates) # not absolute value because slant can either be positive or negative
+
+            close_count_s = len(slant_candidates[np.where(abs(slant_candidates) - abs(slant_final) < tolerance)])
+
+            if close_count_s < 3:
+                slant_final = 3
+
+        ###### Top-left corner pixel coordinates ########
+        rinter.sort(key = lambda x: (x[1], x[0]))
+
+        topleft = rinter[0]
+
+        # If the coordinate isn't within reasonable values, then assign it roughly
+        if topleft[0] < 45 or topleft[0] > 60 or topleft[1] > 10:
+            topleft = [53, 5]
     
 
     return topleft[0], topleft[1], w_final, h_final, slant_final
@@ -384,7 +419,7 @@ def parse_parcel(parcel) -> ParcelResult:
     marked_img = mark_intersects(img, x, y, w, h, s)
 
     # Write marked image to file for diagnostics
-    cv2.imwrite(f'{output_dir}/{parcel}.jpg')
+    cv2.imwrite(f'{output_dir}/{parcel}.jpg', marked_img)
 
     # Run TR-OCR on the sub-images
     building_texts_trocr_raw=[]
@@ -397,7 +432,7 @@ def parse_parcel(parcel) -> ParcelResult:
     for i in range(20): 
         # Subset to one box
         entry_img = img[y:y+h+s, x:x+w]
-        cv2.imwrite(f'{output_dir}/entry_boxes/{parcel}-{i}.jpg')
+        cv2.imwrite(f'{output_dir}/entry_boxes/{parcel}-{i}.jpg', entry_img)
 
         # Try TR-OCR
         print(f"Trying TrOCR on {output_dir}/entry_boxes/{parcel}-{i}.jpg")
@@ -452,7 +487,7 @@ for file in os.listdir(input_dir):
 parcels.sort()
 # parcels = ["0390003004600"]
 
-targets: dict[str, TargetLabel] = {}
+targets = {}
 
 with open("Dataset/Ownership/buildings.csv", "r") as f:
     building_labels = csv.DictReader(f)
@@ -481,7 +516,7 @@ with open("Dataset/Ownership/land.csv", "r") as f:
                 label.initial_land_value = int(land_value)
                 targets[parcel] = label
 
-results: list[ParcelResult] = []
+results = []
 
 for i in tqdm(range(80)):
     parcel = parcels[i]
