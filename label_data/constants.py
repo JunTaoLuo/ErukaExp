@@ -1,3 +1,16 @@
+import os
+
+# Directories
+
+script_dir = os.path.dirname(__file__)
+template_dir = os.path.join(script_dir, "sql_templates")
+data_dir = os.path.join(script_dir, "data")
+
+# Files
+
+building_labels_file = os.path.join(data_dir, "building_labels.csv")
+
+# Parameters
 
 db_params = {
     "samples_label_table": "samples.labels",

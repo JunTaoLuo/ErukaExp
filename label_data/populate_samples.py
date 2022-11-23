@@ -4,9 +4,6 @@ from sqlalchemy import create_engine
 from jinja2 import Environment, FileSystemLoader
 import constants
 
-script_dir = os.path.dirname(__file__)
-template_dir = os.path.join(script_dir, "sql_templates")
-
 def initialize_tables(connection, env, params):
     print("Initializing tables")
 
@@ -34,14 +31,14 @@ def populate_samples(connection, env, params):
 
 if __name__ == "__main__":
 
-    if 'ERUKA_DB' not in os.environ:
+    if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
         sys.exit()
 
     eruka_db_str = os.environ['ERUKA_DB']
 
     db = create_engine(eruka_db_str)
-    jinja_env = Environment(loader=FileSystemLoader(template_dir))
+    jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
 
     with db.connect() as conn:
         initialize_tables(conn, jinja_env, constants.db_params)
