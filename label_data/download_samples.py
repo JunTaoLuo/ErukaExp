@@ -122,7 +122,7 @@ if __name__ == "__main__":
     db = create_engine(eruka_db_str)
     jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
     template = jinja_env.get_template("retrieve_new_samples.sql.j2")
-    parcelids = ['6020002009300']
+    parcelids = []
 
     params = dict(constants.db_params)
     params["entries"] = args.entries
@@ -144,6 +144,7 @@ if __name__ == "__main__":
                 f.write(f"{parcelid},\n")
                 parcelids.append(parcelid)
 
+        parcelids.sort()
         template = jinja_env.get_template("update_errors.sql.j2")
 
         # Download OCs
