@@ -1,3 +1,4 @@
+import argparse
 import constants
 import csv
 import os
@@ -6,6 +7,12 @@ from sqlalchemy import create_engine
 from jinja2 import Environment, FileSystemLoader
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        prog="Update sample labels",
+        description="Script for uploading labeling results from csv file")
+    parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
+    args = parser.parse_args()
 
     if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
@@ -33,7 +40,8 @@ if __name__ == "__main__":
 
             query = template.render(params)
 
-            print(query)
+            if args.verbose:
+                print(query)
 
             conn.execute(query)
 
