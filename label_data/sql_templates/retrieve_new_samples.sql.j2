@@ -1,0 +1,8 @@
+INSERT INTO {{ samples_download_time_table }} (parcelid, download_time)
+SELECT parcelid, current_timestamp
+FROM {{ samples_label_table }}
+WHERE parcelid NOT IN (
+    SELECT parcelid FROM {{ samples_download_time_table }} )
+ORDER BY random()
+LIMIT {{ entries }}
+RETURNING parcelid;

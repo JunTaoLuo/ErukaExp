@@ -5,3 +5,4 @@ Datasets
 client_secrets.json
 database.yaml
 __pycache__/
+label_data/data

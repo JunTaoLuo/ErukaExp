@@ -1,0 +1,19 @@
+{% if not error %}
+INSERT INTO {{ samples_label_time_table }} (parcelid, label_time)
+VALUES ('{{ parcelid }}', CURRENT_TIMESTAMP)
+ON CONFLICT (parcelid) DO UPDATE
+    SET label_time = CURRENT_TIMESTAMP;
+{% endif %}
+
+{% if initial_building_value is defined and initial_building_value|length > 0 %}
+UPDATE {{ samples_label_table }}
+SET initial_building_value = {{ initial_building_value }}
+WHERE parcelid = '{{ parcelid }}';
+{% endif %}
+
+{% if error %}
+INSERT INTO {{ samples_error_table }} (parcelid, error)
+VALUES ('{{ parcelid }}', 'Invalid Ownership Card JPEG')
+ON CONFLICT (parcelid) DO UPDATE
+    SET error = 'Invalid Ownership Card JPEG';
+{% endif %}
