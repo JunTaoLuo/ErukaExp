@@ -1,28 +1,28 @@
-CREATE TABLE relevant_bi AS (
+CREATE TABLE samples.relevant_bi_temp AS (
         SELECT *
-        FROM processed.building_info
+        FROM {{ building_info_source }}
         WHERE parcelid IN
             (SELECT parcelid
-            FROM processed.building_info
+            FROM {{ building_info_source }}
             GROUP BY parcelid
             HAVING (sum(case when year_built < 1930 then 1 else 0 end) = 1) and (count(*) = 1) -- parcels that only have one building, and that building was built < 1930
             )
             AND story_ht != 0 -- parcels without 0 story_ht (removing half finished or unbuilt buildings)
     );
-CREATE TABLE relevant_hs AS (
+CREATE TABLE samples.relevant_hs_temp AS (
         SELECT *
-        FROM processed.historic_sales
+        FROM {{ historic_sales_source }}
         WHERE year_built < 1930 and year_built is not null
     );
-CREATE TABLE bi_hs_match AS (
+CREATE TABLE samples.bi_hs_match_temp AS (
         SELECT parcelid, rb.year_built, rb.attic_sqft, rb.bsmt_sqft, rb.live_sqft, rb.sqft_flr1, rb.sqft_flr2, rb.sqft_flrh, rb.story_ht, rb.prop_class_code, rb.class_description, 
                rh.number_of_parcels, rh.date_of_sale, rh.appraisal_area, rh.total_sales_records, rh.sale_price, 
                rh.style, rh.grade, rh.exterior_wall_type, rh.basement, rh.heating, rh.air_conditioning, rh.total_rooms, rh.full_bath, rh.half_bath, rh.fireplaces, rh.garage_type, rh.garage_capacity,
                rh.finished_sq_ft, rh.total_finish_area, rh.first_floor_area, rh.half_floor_area, rh.finished_basement
-        FROM relevant_bi rb JOIN relevant_hs rh USING(parcelid) -- only keep parcels that match between datasets
+        FROM samples.relevant_bi_temp rb JOIN samples.relevant_hs_temp rh USING(parcelid) -- only keep parcels that match between datasets
         WHERE rb.year_built = rh.year_built -- only keep those with consistent year_buitl information, so we know all columns relevant for that building
     );
-INSERT INTO samples.labels (
+INSERT INTO {{ samples_label_table }} (
     parcelid,
     initial_building_value,
     year_built,
@@ -56,7 +56,8 @@ INSERT INTO samples.labels (
     total_finish_area,
     first_floor_area,
     half_floor_area,
-    finished_basement
+    finished_basement,
+    insert_time
 )
     SELECT
         parcelid,
@@ -92,6 +93,11 @@ INSERT INTO samples.labels (
         total_finish_area,
         first_floor_area,
         half_floor_area,
-        finished_basement
-    FROM bi_hs_match
+        finished_basement,
+        CURRENT_TIMESTAMP
+    FROM samples.bi_hs_match_temp
 ON CONFLICT DO NOTHING;
+
+DROP TABLE samples.relevant_bi_temp;
+DROP TABLE samples.relevant_hs_temp;
+DROP TABLE samples.bi_hs_match_temp;

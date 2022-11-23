@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
-    parcelid          text,
+    parcelid          text NOT NULL PRIMARY KEY,
     initial_building_value double precision,
 
     {# from building info #}
@@ -36,7 +36,10 @@ CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
     total_finish_area   double precision,
     first_floor_area    double precision,
     half_floor_area     double precision,
-    finished_basement   double precision
+    finished_basement   double precision,
+
+    {# Metadata #}
+    insert_time         timestamp
 );
 
 CREATE TABLE IF NOT EXISTS {{ samples_download_time_table }} (
