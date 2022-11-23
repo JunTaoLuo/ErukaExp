@@ -1,0 +1,55 @@
+CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
+    parcelid          text,
+    initial_building_value double precision,
+
+    {# from building info #}
+    attic_sqft        bigint,
+    bsmt_sqft         bigint,
+    live_sqft         bigint,
+    sqft_flr1         bigint,
+    sqft_flr2         bigint,
+    sqft_flrh         bigint,
+    story_ht          double precision,
+    year_built        bigint,
+    prop_class_code   bigint,
+    class_description text,
+
+    {# from historic sales #}
+    number_of_parcels   double precision,
+    date_of_sale        timestamp,
+    appraisal_area      double precision,
+    total_sales_records double precision,
+    sale_price          double precision,
+    style               text,
+    grade               text,
+    exterior_wall_type  text,
+    basement            text,
+    heating             text,
+    air_conditioning    text,
+    total_rooms         double precision,
+    full_bath           double precision,
+    half_bath           double precision,
+    fireplaces          double precision,
+    garage_type         text,
+    garage_capacity     bigint,
+    finished_sq_ft      double precision,
+    total_finish_area   double precision,
+    first_floor_area    double precision,
+    half_floor_area     double precision,
+    finished_basement   double precision
+);
+
+CREATE TABLE IF NOT EXISTS {{ samples_download_time_table }} (
+    parcelid          text NOT NULL PRIMARY KEY,
+    download_time     timestamp
+);
+
+CREATE TABLE IF NOT EXISTS {{ samples_label_time_table }} (
+    parcelid          text NOT NULL PRIMARY KEY,
+    label_time        timestamp
+);
+
+CREATE TABLE IF NOT EXISTS {{ samples_error_table }} (
+    parcelid          text NOT NULL PRIMARY KEY,
+    error             text
+);
