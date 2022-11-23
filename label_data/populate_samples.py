@@ -34,8 +34,7 @@ def populate_samples(connection, env, params, verbose):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        prog="Update sample labels",
-        description="Script for uploading labeling results from csv file")
+        description="Script for populating empty samples labels")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     args = parser.parse_args()
 

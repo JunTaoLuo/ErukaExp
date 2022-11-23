@@ -9,13 +9,16 @@ from jinja2 import Environment, FileSystemLoader
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        prog="Update sample labels",
         description="Script for uploading labeling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     args = parser.parse_args()
 
     if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
+        sys.exit()
+
+    if not os.path.exists(constants.building_labels_file):
+        print(f'Results file: {constants.building_labels_file} not found')
         sys.exit()
 
     eruka_db_str = os.environ['ERUKA_DB']
