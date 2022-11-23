@@ -39,6 +39,7 @@ if __name__ == "__main__":
                 if initial_building_value == "error":
                     params["error"] = True
                 else:
+                    params["error"] = False
                     params["initial_building_value"] = initial_building_value
 
             query = template.render(params)
