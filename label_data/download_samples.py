@@ -139,13 +139,9 @@ if __name__ == "__main__":
             parcelids.append(row[0])
         parcelids.sort() # sorting to ensure they appear in order on labels csv file
 
-        # Write labels csv file
-        with open(constants.building_labels_file, "w") as f:
-            f.write(f"parcelid,initial_building_value\n")
-            for parcelid in parcelids:
-                f.write(f"{parcelid},\n")
-
         template = jinja_env.get_template("update_errors.sql.j2")
+
+        downloaded_parcelids = []
 
         # Download OCs
         for parcelid in parcelids:
@@ -157,6 +153,14 @@ if __name__ == "__main__":
                 params["error"] = status
                 query = template.render(params)
                 conn.execute(query)
+            else:
+                downloaded_parcelids.append(parcelid)
+
+        # Write labels csv file
+        with open(constants.building_labels_file, "w") as f:
+            f.write(f"parcelid,initial_building_value\n")
+            for parcelid in downloaded_parcelids:
+                f.write(f"{parcelid},\n")
 
         # Postprocessing
         for file in os.listdir(constants.data_dir):
