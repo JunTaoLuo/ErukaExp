@@ -135,16 +135,16 @@ if __name__ == "__main__":
 
         # Get list of parcelids from database
         results = conn.execute(query).fetchall()
+        for row in results:
+            parcelids.append(row[0])
+        parcelids.sort() # sorting to ensure they appear in order on labels csv file
 
         # Write labels csv file
         with open(constants.building_labels_file, "w") as f:
             f.write(f"parcelid,initial_building_value\n")
-            for row in results:
-                parcelid = row[0]
+            for parcelid in parcelids:
                 f.write(f"{parcelid},\n")
-                parcelids.append(parcelid)
 
-        parcelids.sort()
         template = jinja_env.get_template("update_errors.sql.j2")
 
         # Download OCs
