@@ -15,8 +15,8 @@ CREATE TABLE samples.relevant_hs_temp AS (
         WHERE year_built < 1930 and year_built is not null
     );
 CREATE TABLE samples.bi_hs_match_temp AS (
-        SELECT parcelid, rb.year_built, rb.attic_sqft, rb.bsmt_sqft, rb.live_sqft, rb.sqft_flr1, rb.sqft_flr2, rb.sqft_flrh, rb.story_ht, rb.prop_class_code, rb.class_description, 
-               rh.number_of_parcels, rh.date_of_sale, rh.appraisal_area, rh.total_sales_records, rh.sale_price, 
+        SELECT parcelid, rb.year_built, rb.attic_sqft, rb.bsmt_sqft, rb.live_sqft, rb.sqft_flr1, rb.sqft_flr2, rb.sqft_flrh, rb.story_ht, rb.prop_class_code, rb.class_description,
+               rh.number_of_parcels, rh.date_of_sale, rh.appraisal_area, rh.total_sales_records, rh.sale_price,
                rh.style, rh.grade, rh.exterior_wall_type, rh.basement, rh.heating, rh.air_conditioning, rh.total_rooms, rh.full_bath, rh.half_bath, rh.fireplaces, rh.garage_type, rh.garage_capacity,
                rh.finished_sq_ft, rh.total_finish_area, rh.first_floor_area, rh.half_floor_area, rh.finished_basement
         FROM samples.relevant_bi_temp rb JOIN samples.relevant_hs_temp rh USING(parcelid) -- only keep parcels that match between datasets
@@ -24,7 +24,6 @@ CREATE TABLE samples.bi_hs_match_temp AS (
     );
 INSERT INTO {{ samples_label_table }} (
     parcelid,
-    initial_building_value,
     year_built,
     attic_sqft,
     bsmt_sqft,
@@ -57,11 +56,15 @@ INSERT INTO {{ samples_label_table }} (
     first_floor_area,
     half_floor_area,
     finished_basement,
-    insert_time
+    insert_time,
+    value_no_year,
+    year1,
+    value1,
+    year2,
+    value2
 )
     SELECT
         parcelid,
-        null::double precision as initial_building_value,
         year_built,
         attic_sqft,
         bsmt_sqft,
@@ -94,7 +97,12 @@ INSERT INTO {{ samples_label_table }} (
         first_floor_area,
         half_floor_area,
         finished_basement,
-        CURRENT_TIMESTAMP
+        CURRENT_TIMESTAMP,
+        null::double precision as value_no_year,
+        null::bigint as year1,
+        null::double precision as value1,
+        null::bigint as year2,
+        null::double precision as value2
     FROM samples.bi_hs_match_temp
 ON CONFLICT DO NOTHING;
 

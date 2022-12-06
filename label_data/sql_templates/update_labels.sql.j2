@@ -5,10 +5,32 @@ ON CONFLICT (parcelid) DO UPDATE
     SET label_time = CURRENT_TIMESTAMP;
 {% endif %}
 
-{% if initial_building_value is defined and initial_building_value|length > 0 %}
+{% if not error and update %}
+    {% if value_no_year is defined and value_no_year|length > 0 %}
 UPDATE {{ samples_label_table }}
-SET initial_building_value = {{ initial_building_value }}
+SET value_no_year = {{ value_no_year }}
 WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if year1 is defined and year1|length > 0 %}
+UPDATE {{ samples_label_table }}
+SET year1 = {{ year1 }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if value1 is defined and value1|length > 0 %}
+UPDATE {{ samples_label_table }}
+SET value1 = {{ value1 }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if year2 is defined and year2|length > 0 %}
+UPDATE {{ samples_label_table }}
+SET year2 = {{ year2 }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if value2 is defined and value2|length > 0 %}
+UPDATE {{ samples_label_table }}
+SET value2 = {{ value2 }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
 {% endif %}
 
 {% if error %}

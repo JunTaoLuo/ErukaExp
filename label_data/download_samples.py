@@ -139,6 +139,17 @@ if __name__ == "__main__":
             parcelids.append(row[0])
         parcelids.sort() # sorting to ensure they appear in order on labels csv file
 
+        # Put all non-numeric parcelids first to match file explorer/finder
+        parcelids_numeric = []
+        parcelids_nonnumeric = []
+        for parcelid in parcelids:
+            if parcelid.isnumeric():
+                parcelids_numeric.append(parcelid)
+            else:
+                parcelids_nonnumeric.append(parcelid)
+        parcelids = parcelids_nonnumeric
+        parcelids.extend(parcelids_numeric)
+
         template = jinja_env.get_template("update_errors.sql.j2")
 
         downloaded_parcelids = []
@@ -158,9 +169,9 @@ if __name__ == "__main__":
 
         # Write labels csv file
         with open(constants.building_labels_file, "w") as f:
-            f.write(f"parcelid,initial_building_value\n")
+            f.write(f"parcelid,value_no_year,year1,value1,year2,value2\n")
             for parcelid in downloaded_parcelids:
-                f.write(f"{parcelid},\n")
+                f.write(f"{parcelid},,,,,\n")
 
         # Postprocessing
         for file in os.listdir(constants.data_dir):
