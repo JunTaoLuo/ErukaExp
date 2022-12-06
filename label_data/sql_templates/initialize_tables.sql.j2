@@ -1,6 +1,10 @@
 CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
-    initial_building_value double precision,
+    value_no_year     double precision,
+    year1             bigint,
+    value1            double precision,
+    year2             bigint,
+    value2            double precision,
 
     {# from building info #}
     attic_sqft        bigint,
