@@ -18,8 +18,20 @@ The following packages/libraries must be installed
 2. Download the data for labeling by running the `download_samples.py`. This script obtains a number of entries, which can be specified via command line arguments, that have not yet been downloaded yet and attempts to retrive the Ownership Card from the county website. There is some light image processing to crop and rotate the image. This script will place the downloaded images in `data/` along with a label csv file that needs to be filled out.
 3. Manual labeling by editing the label csv file.
    1. If the image of the ownership card is not valid (e.g. empty or badly cropped), enter "error" in the label csv file
-   2. If the initial building value is available, enter in the amount in the label file corresponding to the same parcelid as the image of the ownership card.
-   3. If the inital building value is not present, but the ownership card is otherwise valid, no edits are necessary
+   2. If no row under the `BUILDINGS` column with a valid value, but the ownership card is otherwise valid, no edits are necessary. For example:
+   ![Empty Building Values](examples/6200092011000.jpg)
+   3. If there is a row under the `BUILDINGS` column with a valid value and does not have a year in the `DATE` column, enter the earliest such value in the `value_no_year` column of the label file corresponding to the same parcelid as the image of the ownership card. If the earliest building value has a year, leave the `value_no_year` column blank.
+   4. If there is a row under the `BUILDINGS` column with a valid value and has a non-empty year in the `DATE` column, enter the earliest such value in the `value1` column and the complete year (i.e. `1978` instead of `78`) in the `year1` column of the label file corresponding to the same parcelid as the image of the ownership card.
+   5. If there are additional rows with a valid value and a non-empty year, enter the second earliest such value in the `value2` column and the year in the `year2` column of the label file corresponding to the same parcelid as the image of the ownership card.
+   6. For example, the entry in the label file should be:
+
+```
+parcelid,value_no_year,year1,value1,year2,value2
+6710007033800,2750,1978,8990,1981,11370
+```
+
+   for the image:
+   ![Ownership Card 1](examples/6710007033800.jpg)
 4. Once the label csv file is filled out, it can be uploaded by running the `update_sample_labels.py`.
 
 ## Design
@@ -28,7 +40,7 @@ There are 4 labels in the `samples` schema of the database:
 
 - `labels`: this is the table containing the samples we are interested in. This table contains both labeled and unlabeled entries and need to be queried to retrieve the labeled samples.
 - `download_time`: this indicates when samples were downloaded by the `download_samples.py` script. We keep this data to try prevent downloading the same entry multiple times.
-- `label_time`: this indicates when a sample has been labeled. Note that labeled samples may still have an empty value in the `initial_building_value` column if there was no value on the Ownership Card.
+- `label_time`: this indicates when a sample has been labeled. Note that labeled samples may still have an empty value in the `samples.labels` if there was no corresponding value on the Ownership Card.
 - `error`: this contains a list of samples where we weren't able to label manually as well as a message indicating the error. Most of the time, these are due to missing Ownership Cards from the county website.
 
 ### Sample life cycle
@@ -38,7 +50,7 @@ Each sample will go through the following steps:
 1. Entry is added to `samples.labels` by the `populate_samples.py` script.
 2. The ownership data is downloaded by the `download_samples.py` and recorded in `samples.download_time`.
    1. If an error occurs, it will be recorded in `samples.error`.
-3. Once the manual labeling is complete, the sample's `initial_building_value` will be updated in `samples.labels` by the `update_sample_labels.py` script.
+3. Once the manual labeling is complete, the sample's labels will be updated in `samples.labels` by the `update_sample_labels.py` script.
    1. If an error occurs, it will be recorded in `samples.error`.
 
 ## Open Questions
@@ -51,7 +63,7 @@ Each sample will go through the following steps:
    3. `update_sample_labels.py` will update `label_time` and `error` tables when sample already exist
 3. Error recovery:
    1. Currently, this hasn't been designed but we may need to consider this in the future. For example, we have fixed an issue that affected the downloading of Ownership Cards and want to relabeled these samples. In this case, we'll need to delete the entries in `download_time` and `error` so these samples can be downloaded again.
-   2. Also consider realizing that a batch of manual labels need to be redone. In this case, we need to clear the `initial_building_value` column of the affected samples in `labels` and remove the corresponding entries in `label_time` and `download_time` (maybe even also `error`).
+   2. Also consider realizing that a batch of manual labels need to be redone. In this case, we need to clear the manually labeled columns of the affected samples in `labels` and remove the corresponding entries in `label_time` and `download_time` (maybe even also `error`).
 4. Additional features:
    1. Adding progress bars to display estimates of how long the script will run
    2. Optimized bulk table updates. Currently we update table entries one at a time through sqlalchemy which is very slow. Converting the updates to a table (via pandas df) and bulk updating will probably be much faster.
