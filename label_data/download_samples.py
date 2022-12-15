@@ -179,7 +179,7 @@ if __name__ == "__main__":
         with open(constants.building_labels_file, "w") as f:
             f.write(f"parcelid,value_no_year,year1,value1,year2,value2\n")
             for parcelid in downloaded_parcelids:
-                f.write(f"{parcelid},,,,,\n")
+                f.write(f"'{parcelid},,,,,\n") # the ' preserves the value as string in google sheets
 
         # Postprocessing
         for file in os.listdir(constants.data_dir):
