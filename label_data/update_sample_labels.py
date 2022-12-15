@@ -3,15 +3,56 @@ import constants
 import csv
 import os
 import sys
+import requests
 from sqlalchemy import create_engine
 from jinja2 import Environment, FileSystemLoader
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Script for uploading labeling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
+    parser.add_argument('-g', '--gdrive', nargs=1, required=False, help='indicate the GDrive folder containing the results',)
     args = parser.parse_args()
+
+    if len(args.gdrive) > 0 and args.gdrive[0]:
+        print(f"Getting results from GDrive at {args.gdrive}")
+
+        # ErukaLabels folder id
+        labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
+
+        # Sign in to GDrive
+        ga = GoogleAuth()
+        ga.LocalWebserverAuth()  # This line in your code currently calls LocalWebserverAuth()
+        drive = GoogleDrive(ga)
+
+        folder_id = ""
+        file_list = drive.ListFile({'q': f"'{labels_dir_id}' in parents and trashed=false"}).GetList()
+        for file in file_list:
+            if(file['title'] == args.gdrive[0]):
+                folder_id = file['id']
+                break
+
+        if not folder_id:
+            print(f"Could not find folder {args.gdrive} on GDrive")
+            exit(1)
+
+        export_url = ""
+        file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
+        for file in file_list:
+            if(file['title'] == constants.building_labels_prefix):
+                export_url = file['exportLinks']['text/csv']
+                break
+
+        if not export_url:
+            print(f"Could not find file {constants.building_labels_prefix} in {args.gdrive} on GDrive")
+            exit(1)
+
+        headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
+        res = requests.get(export_url, headers=headers)
+        open(constants.building_labels_file, "wb").write(res.content)
 
     num_labels = 0
 
