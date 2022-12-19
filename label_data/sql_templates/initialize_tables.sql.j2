@@ -60,3 +60,10 @@ CREATE TABLE IF NOT EXISTS {{ samples_error_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
     error             text
 );
+
+CREATE TABLE IF NOT EXISTS {{ samples_building_values_table }} (
+    parcelid          text NOT NULL PRIMARY KEY,
+    building_value    double precision,
+    value_year        bigint,
+    handwritten       boolean
+);
