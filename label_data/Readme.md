@@ -17,21 +17,31 @@ The following packages/libraries must be installed
 1. Populate `samples.labels` table with new unlabeled samples by running the `populate_samples.py` script. This script uses the SQL logic in `sql_templates/populate_samples.sql.j2` to determine what to include. This script is idempotent so it can be run multiple times without adding the same entries multiple times.
 2. Download the data for labeling by running the `download_samples.py`. This script obtains a number of entries, which can be specified via command line arguments, that have not yet been downloaded yet and attempts to retrive the Ownership Card from the county website. There is some light image processing to crop and rotate the image. This script will place the downloaded images in `data/` along with a label csv file that needs to be filled out.
 3. Manual labeling by editing the label csv file.
-   1. If the image of the ownership card is not valid (e.g. empty or badly cropped), enter "error" in the label csv file
-   2. If no row under the `BUILDINGS` column with a valid value, but the ownership card is otherwise valid, no edits are necessary. For example:
+   1. Select the csv file in the Google Drive folder and choose to open in Google Sheets using the button at the top of the window.
+   2. Sort the images in the Google Drive folder in ascending order to match the order in the csv file.
+   3. If the image of the ownership card is not valid (e.g. empty or badly cropped), enter `error` in the label csv file under the `building_value` column.
+   4. If no row under the `BUILDINGS` column with a valid value, but the ownership card is otherwise valid, no edits are necessary. For example:
    ![Empty Building Values](examples/6200092011000.jpg)
-   3. If there is a row under the `BUILDINGS` column with a valid value and does not have a year in the `DATE` column, enter the earliest such value in the `value_no_year` column of the label file corresponding to the same parcelid as the image of the ownership card. If the earliest building value has a year, leave the `value_no_year` column blank.
-   4. If there is a row under the `BUILDINGS` column with a valid value and has a non-empty year in the `DATE` column, enter the earliest such value in the `value1` column and the complete year (i.e. `1978` instead of `78`) in the `year1` column of the label file corresponding to the same parcelid as the image of the ownership card.
-   5. If there are additional rows with a valid value and a non-empty year, enter the second earliest such value in the `value2` column and the year in the `year2` column of the label file corresponding to the same parcelid as the image of the ownership card.
-   6. For example, the entry in the label file should be:
+   5. If there is a row under the `BUILDINGS` column with a valid value, enter the earliest such value in the `building_value` column of the label file corresponding to the same parcelid as the image of the ownership card. If the same row contains a non-empty year in the `DATE` column, enther the complete year (i.e. `1978` instead of `78`) in the `value_year` column of the label file, otherwise leave it blank. If the value is handwritten, enter `1` in the `handwritten` column, otherwise leave it blank.
+   6. If there are any other scenarios that are not described here, enter `error` in the label csv file under the `building_value` column.
+   7. For example, the entry in the label file should be:
 
 ```
-parcelid,value_no_year,year1,value1,year2,value2
-6710007033800,2750,1978,8990,1981,11370
+parcelid,handwritten,value_year,building_value
+6710007033800,,,2750
 ```
 
    for the image:
    ![Ownership Card 1](examples/6710007033800.jpg)
+and
+```
+parcelid,handwritten,value_year,building_value
+6710007033800,1,1961,1540
+```
+
+   for the image:
+   ![Ownership Card 1](examples/0010001001500.jpg)
+
 4. Once the label csv file is filled out, it can be uploaded by running the `update_sample_labels.py`.
 
 ## Design

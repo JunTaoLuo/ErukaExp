@@ -11,6 +11,9 @@ import requests as rq
 import sys
 from sqlalchemy import create_engine
 from jinja2 import Environment, FileSystemLoader
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+from datetime import datetime
 
 # Ownership page source template
 ownership_source = 'https://wedge.hcauditor.org/view/re/{}/2021/imagesOwnerCard'
@@ -111,6 +114,11 @@ if __name__ == "__main__":
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
         sys.exit()
 
+    # Sign in to GDrive
+    ga = GoogleAuth()
+    ga.LocalWebserverAuth()  # This line in your code currently calls LocalWebserverAuth()
+    drive = GoogleDrive(ga)
+
     # Create clean directory if not exists
     if not os.path.exists(constants.data_dir):
         os.makedirs(constants.data_dir)
@@ -169,9 +177,9 @@ if __name__ == "__main__":
 
         # Write labels csv file
         with open(constants.building_labels_file, "w") as f:
-            f.write(f"parcelid,value_no_year,year1,value1,year2,value2\n")
+            f.write(f"parcelid,handwritten,value_year,building_value\n")
             for parcelid in downloaded_parcelids:
-                f.write(f"{parcelid},,,,,\n")
+                f.write(f"'{parcelid},,,\n") # the ' preserves the value as string in google sheets
 
         # Postprocessing
         for file in os.listdir(constants.data_dir):
@@ -194,5 +202,40 @@ if __name__ == "__main__":
 
             cv2.imwrite(img_path, img)
 
+    # Upload to GDrive
+    current_timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
+    # ErukaLabels folder id
+    labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
+
+    # Create batch folder
+    batch_folder = drive.CreateFile({
+        "title": current_timestamp,
+        "parents": [{"id": labels_dir_id}],
+        "mimeType": "application/vnd.google-apps.folder"
+    })
+    batch_folder.Upload()
+
+    # Upload csv
+    print(f"Uploading {constants.building_labels_name} to GDrive")
+    csv_file = drive.CreateFile({
+        "title": constants.building_labels_name,
+        "parents": [{"id": batch_folder.get('id')}],
+        "mimeType": "text/csv"
+    })
+    csv_file.SetContentFile(constants.building_labels_file)
+    csv_file.Upload()
+
+    for file in os.listdir(constants.data_dir):
+        if file.endswith(".jpg"):
+            print(f"Uploading {file} to GDrive")
+            jpg_file = drive.CreateFile({
+                "title": file,
+                "parents": [{"id": batch_folder.get('id')}],
+                "mimeType": "image/jpeg"
+            })
+            jpg_file.SetContentFile(os.path.join(constants.data_dir, file))
+            jpg_file.Upload()
+
+    print(f"Label files ready on GDrive at ErukaLabels/{current_timestamp}")
 

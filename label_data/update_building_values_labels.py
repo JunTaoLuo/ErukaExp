@@ -63,52 +63,31 @@ if __name__ == "__main__":
         for line, row in enumerate(building_labels):
             num_labels += 1
             parcelid = row["parcelid"]
-            value_no_year = row["value_no_year"]
+            building_value = row["building_value"]
 
-            # value_no_year must be empty, numeric or "error"
-            if value_no_year:
-                if value_no_year != "error" and not value_no_year.isnumeric():
-                    print(f"Invalid value for 'value_no_year': {value_no_year} for parcel {parcelid} on line {line+2}. Value must be empty, numeric or 'error'.")
+            # building_value must be empty, numeric or "error"
+            if building_value:
+                if building_value != "error" and not building_value.isnumeric():
+                    print(f"Invalid value for 'building_value': {building_value} for parcel {parcelid} on line {line+2}. Value must be empty, numeric or 'error'.")
                     sys.exit()
 
-            # year1 and value1 must both be empty or numeric
-            year1 = row["year1"]
-            value1 = row["value1"]
+            # value_year must be empty or numeric and of length 4
+            value_year = row["value_year"]
 
-            if (year1 and not value1) or (not year1 and value1):
-                print(f"Mismatched 'year1': {year1} and 'value1': {value1} for parcel {parcelid} on line {line+2}. Both must be empty or non-empty.")
-                sys.exit()
-            if year1 and not year1.isnumeric():
-                print(f"Invalid value for 'year1': {year1} for parcel {parcelid} on line {line+2}. Value must be numeric.")
-                sys.exit()
-            if value1 and not value1.isnumeric():
-                print(f"Invalid value for 'value1': {value1} for parcel {parcelid} on line {line+2}. Value must be numeric.")
-                sys.exit()
+            if value_year:
+                if not value_year.isnumeric():
+                    print(f"Invalid value for 'value_year': {value_year} for parcel {parcelid} on line {line+2}. Value must be numeric.")
+                    sys.exit()
+                if len(value_year) != 4:
+                    print(f"Invalid value for 'value_year': {value_year} for parcel {parcelid} on line {line+2}. Value must consist of 4 digits.")
+                    sys.exit()
 
-            # year2 and value2 must both be empty or numeric
-            year2 = row["year2"]
-            value2 = row["value2"]
+            # handwritten be empty or '1'
+            handwritten = row["handwritten"]
 
-            if (year2 and not value2) or (not year2 and value2):
-                print(f"Mismatched 'year2': {year2} and 'value2': {value2} for parcel {parcelid} on line {line+2}. Both must be empty or non-empty.")
-                sys.exit()
-            if year2 and not year2.isnumeric():
-                print(f"Invalid value for 'year2': {year2} for parcel {parcelid} on line {line+2}. Value must be numeric.")
-                sys.exit()
-            if value2 and not value2.isnumeric():
-                print(f"Invalid value for 'value2': {value2} for parcel {parcelid} on line {line+2}. Value must be numeric.")
-                sys.exit()
-
-            # if there is an error, none of year1, value1, year2, value2 should be set
-            if value_no_year == "error" and (year1 or value1 or year2 or value2):
-                print(f"Invalid entry for parcel {parcelid} on line {line+2}. No year or value should be entered if error has occured.")
-                sys.exit()
-
-            # year2, value2 should only be set if year1, value1 is set
-            if (year2 or value2) and not year1 and not value1:
-                print(f"Invalid entry for parcel {parcelid} on line {line+2}. 'year2' and 'value2' set while 'year1' and 'value1' not set.")
-                sys.exit()
-
+            if handwritten and handwritten != "1":
+                    print(f"Invalid value for 'handwritten': {handwritten} for parcel {parcelid} on line {line+2}. Value must be empty or '1'.")
+                    sys.exit()
 
     if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
@@ -122,7 +101,7 @@ if __name__ == "__main__":
 
     db = create_engine(eruka_db_str)
     jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
-    template = jinja_env.get_template("update_labels.sql.j2")
+    template = jinja_env.get_template("update_building_values_labels.sql.j2")
 
     with db.connect() as conn, open(constants.building_labels_file, "r") as f:
         building_labels = csv.DictReader(f)
@@ -132,18 +111,14 @@ if __name__ == "__main__":
             print(f"Uploading label {i}")
             params = dict(constants.db_params)
             params["parcelid"] = row["parcelid"]
-            value_no_year = row["value_no_year"]
-            year1 = row["year1"]
-            value1 = row["value1"]
-            year2 = row["year2"]
-            value2 = row["value2"]
-            params["update"] = value_no_year or year1 or value1 or year2 or value2
-            params["error"] = value_no_year == "error"
-            params["value_no_year"] = value_no_year
-            params["year1"] = year1
-            params["value1"] = value1
-            params["year2"] = year2
-            params["value2"] = value2
+            building_value = row["building_value"]
+            value_year = row["value_year"]
+            handwritten = row["handwritten"] == "1"
+            params["update"] = building_value or value_year or handwritten
+            params["error"] = building_value == "error"
+            params["building_value"] = building_value
+            params["value_year"] = value_year
+            params["handwritten"] = handwritten
 
             query = template.render(params)
 

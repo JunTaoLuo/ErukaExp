@@ -1,0 +1,34 @@
+{% if not error %}
+INSERT INTO {{ samples_label_time_table }} (parcelid, label_time)
+VALUES ('{{ parcelid }}', CURRENT_TIMESTAMP)
+ON CONFLICT (parcelid) DO UPDATE
+    SET label_time = CURRENT_TIMESTAMP;
+{% endif %}
+
+{% if not error and update %}
+INSERT INTO {{ samples_building_values_table }} (parcelid)
+VALUES ('{{ parcelid }}')
+ON CONFLICT (parcelid) DO NOTHING;
+    {% if building_value is defined and building_value|length > 0 %}
+UPDATE {{ samples_building_values_table }}
+SET building_value = {{ building_value }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if value_year is defined and value_year|length > 0 %}
+UPDATE {{ samples_building_values_table }}
+SET value_year = {{ value_year }}
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+    {% if handwritten is defined and handwritten %}
+UPDATE {{ samples_building_values_table }}
+SET handwritten = true
+WHERE parcelid = '{{ parcelid }}';
+    {% endif %}
+{% endif %}
+
+{% if error %}
+INSERT INTO {{ samples_error_table }} (parcelid, error)
+VALUES ('{{ parcelid }}', 'Invalid Ownership Card JPEG')
+ON CONFLICT (parcelid) DO UPDATE
+    SET error = 'Invalid Ownership Card JPEG';
+{% endif %}
