@@ -71,15 +71,15 @@ if __name__ == "__main__":
                     print(f"Invalid value for 'building_value': {building_value} for parcel {parcelid} on line {line+2}. Value must be empty, numeric or 'error'.")
                     sys.exit()
 
-            # value_year must be empty or numeric and of length 4
-            value_year = row["value_year"]
+            # year must be empty or numeric and of length 4
+            year = row["year"]
 
-            if value_year:
-                if not value_year.isnumeric():
-                    print(f"Invalid value for 'value_year': {value_year} for parcel {parcelid} on line {line+2}. Value must be numeric.")
+            if year:
+                if not year.isnumeric():
+                    print(f"Invalid value for 'year': {year} for parcel {parcelid} on line {line+2}. Value must be numeric.")
                     sys.exit()
-                if len(value_year) != 4:
-                    print(f"Invalid value for 'value_year': {value_year} for parcel {parcelid} on line {line+2}. Value must consist of 4 digits.")
+                if len(year) != 4:
+                    print(f"Invalid value for 'year': {year} for parcel {parcelid} on line {line+2}. Value must consist of 4 digits.")
                     sys.exit()
 
             # handwritten be empty or '1'
@@ -112,12 +112,12 @@ if __name__ == "__main__":
             params = dict(constants.db_params)
             params["parcelid"] = row["parcelid"]
             building_value = row["building_value"]
-            value_year = row["value_year"]
+            year = row["year"]
             handwritten = row["handwritten"] == "1"
-            params["update"] = building_value or value_year or handwritten
+            params["update"] = building_value or year or handwritten
             params["error"] = building_value == "error"
             params["building_value"] = building_value
-            params["value_year"] = value_year
+            params["year"] = year
             params["handwritten"] = handwritten
 
             query = template.render(params)

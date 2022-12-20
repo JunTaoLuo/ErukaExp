@@ -14,9 +14,9 @@ UPDATE {{ samples_building_values_table }}
 SET building_value = {{ building_value }}
 WHERE parcelid = '{{ parcelid }}';
     {% endif %}
-    {% if value_year is defined and value_year|length > 0 %}
+    {% if year is defined and year|length > 0 %}
 UPDATE {{ samples_building_values_table }}
-SET value_year = {{ value_year }}
+SET "year" = {{ year }}
 WHERE parcelid = '{{ parcelid }}';
     {% endif %}
     {% if handwritten is defined and handwritten %}

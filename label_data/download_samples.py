@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
         # Write labels csv file
         with open(constants.building_labels_file, "w") as f:
-            f.write(f"parcelid,handwritten,value_year,building_value\n")
+            f.write(f"parcelid,building_value,year,handwritten\n")
             for parcelid in downloaded_parcelids:
                 f.write(f"'{parcelid},,,\n") # the ' preserves the value as string in google sheets
 
