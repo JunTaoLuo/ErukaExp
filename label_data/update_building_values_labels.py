@@ -71,15 +71,15 @@ if __name__ == "__main__":
                     print(f"Invalid value for 'building_value': {building_value} for parcel {parcelid} on line {line+2}. Value must be empty, numeric or 'error'.")
                     sys.exit()
 
-            # year must be empty or numeric and of length 4
+            # year must be empty or numeric and of length 2
             year = row["year"]
 
             if year:
                 if not year.isnumeric():
                     print(f"Invalid value for 'year': {year} for parcel {parcelid} on line {line+2}. Value must be numeric.")
                     sys.exit()
-                if len(year) != 4:
-                    print(f"Invalid value for 'year': {year} for parcel {parcelid} on line {line+2}. Value must consist of 4 digits.")
+                if len(year) != 2:
+                    print(f"Invalid value for 'year': {year} for parcel {parcelid} on line {line+2}. Value must consist of 2 digits.")
                     sys.exit()
 
             # handwritten be empty or '1'
