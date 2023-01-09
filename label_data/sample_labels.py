@@ -3,7 +3,6 @@ import random
 import constants
 import csv
 import os
-import sys
 import requests
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -58,7 +57,6 @@ if __name__ == "__main__":
     headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
     res = requests.get(export_url, headers=headers)
 
-    results_file = os.path.join(constants.data_dir, "all_labels.csv")
     results_file = os.path.join(constants.data_dir, "all_labels.csv")
 
     open(results_file, "wb").write(res.content)
