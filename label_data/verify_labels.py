@@ -28,7 +28,7 @@ if __name__ == "__main__":
     labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
 
     # Ref csv file id
-    ref_csv_id = "1xwYiEvqRmAN4UVzb7wXfLZ3z163QDfDQ"
+    ref_csv_id = "1n5JaxpzEDCACnFlyUPnCJwquiMCxnTAY"
 
     # Sign in to GDrive
     ga = GoogleAuth()
@@ -78,12 +78,21 @@ if __name__ == "__main__":
         for line, (ref_row, labels_row) in enumerate(zip(ref_labels, labels)):
             parcelid = ref_row["parcelid"]
             num_labels += 1
+            label_str = labels_row['building_value'].replace(',', '')
 
-            if ref_row['building_value'] != labels_row['building_value']:
-                abs_error += abs(int(ref_row['building_value']) - int(labels_row['building_value']))
-            if (ref_row['building_value'] != labels_row['building_value']
+            if (ref_row['building_value'] != label_str
                 or ref_row['year'] != labels_row['year']
                 or ref_row['handwritten'] != labels_row['handwritten']):
+                print(f"Error in labeling {parcelid}")
+
+                if ref_row['building_value'] != label_str:
+                    abs_error += abs(int(ref_row['building_value']) - int(label_str))
+                    print(f"building value incorrect expected: {ref_row['building_value']} labeled: {labels_row['building_value']}")
+                if ref_row['year'] != labels_row['year']:
+                    print(f"year incorrect expected: {ref_row['year']} labeled: {labels_row['year']}")
+                if ref_row['handwritten'] != labels_row['handwritten']:
+                    print(f"handwritten incorrect expected: {ref_row['handwritten']} labeled: {labels_row['handwritten']}")
+
                 incorrect_parcelids.append(parcelid)
 
     print(f"Labeling Accuracy: {1 - (len(incorrect_parcelids)/num_labels)}")
