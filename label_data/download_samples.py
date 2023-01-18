@@ -107,6 +107,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script for downloading new samples for manual labeling")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
+    parser.add_argument('-su', '--skip-upload', action='store_true', help='do not upload to google drive')
+    parser.add_argument('-p', '--parcelid', help='download sample for specific parcel ID, this option overrides N and does not record the sample as downloaded')
     parser.add_argument('entries', metavar="N", type=int, help="Number of entries to retrieve", default=20, nargs='?')
     args = parser.parse_args()
 
@@ -114,10 +116,11 @@ if __name__ == "__main__":
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
         sys.exit()
 
-    # Sign in to GDrive
-    ga = GoogleAuth()
-    ga.LocalWebserverAuth()  # This line in your code currently calls LocalWebserverAuth()
-    drive = GoogleDrive(ga)
+    if not args.skip_upload:
+        # Sign in to GDrive
+        ga = GoogleAuth()
+        ga.LocalWebserverAuth()  # This line in your code currently calls LocalWebserverAuth()
+        drive = GoogleDrive(ga)
 
     # Create clean directory if not exists
     if not os.path.exists(constants.data_dir):
@@ -138,14 +141,17 @@ if __name__ == "__main__":
     query = template.render(params)
 
     with db.connect() as conn:
-        if args.verbose:
-            print(query)
+        if args.parcelid:
+            parcelids.append(args.parcelid)
+        else:
+            if args.verbose:
+                print(query)
 
-        # Get list of parcelids from database
-        results = conn.execute(query).fetchall()
-        for row in results:
-            parcelids.append(row[0])
-        parcelids.sort() # sorting to ensure they appear in order on labels csv file
+            # Get list of parcelids from database
+            results = conn.execute(query).fetchall()
+            for row in results:
+                parcelids.append(row[0])
+            parcelids.sort() # sorting to ensure they appear in order on labels csv file
 
         # Put all non-numeric parcelids first to match file explorer/finder
         parcelids_numeric = []
@@ -202,40 +208,41 @@ if __name__ == "__main__":
 
             cv2.imwrite(img_path, img)
 
-    # Upload to GDrive
-    current_timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+    if not args.skip_upload:
+        # Upload to GDrive
+        current_timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-    # ErukaLabels folder id
-    labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
+        # ErukaLabels folder id
+        labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
 
-    # Create batch folder
-    batch_folder = drive.CreateFile({
-        "title": current_timestamp,
-        "parents": [{"id": labels_dir_id}],
-        "mimeType": "application/vnd.google-apps.folder"
-    })
-    batch_folder.Upload()
+        # Create batch folder
+        batch_folder = drive.CreateFile({
+            "title": current_timestamp,
+            "parents": [{"id": labels_dir_id}],
+            "mimeType": "application/vnd.google-apps.folder"
+        })
+        batch_folder.Upload()
 
-    # Upload csv
-    print(f"Uploading {constants.building_labels_name} to GDrive")
-    csv_file = drive.CreateFile({
-        "title": constants.building_labels_name,
-        "parents": [{"id": batch_folder.get('id')}],
-        "mimeType": "text/csv"
-    })
-    csv_file.SetContentFile(constants.building_labels_file)
-    csv_file.Upload()
+        # Upload csv
+        print(f"Uploading {constants.building_labels_name} to GDrive")
+        csv_file = drive.CreateFile({
+            "title": constants.building_labels_name,
+            "parents": [{"id": batch_folder.get('id')}],
+            "mimeType": "text/csv"
+        })
+        csv_file.SetContentFile(constants.building_labels_file)
+        csv_file.Upload()
 
-    for file in os.listdir(constants.data_dir):
-        if file.endswith(".jpg"):
-            print(f"Uploading {file} to GDrive")
-            jpg_file = drive.CreateFile({
-                "title": file,
-                "parents": [{"id": batch_folder.get('id')}],
-                "mimeType": "image/jpeg"
-            })
-            jpg_file.SetContentFile(os.path.join(constants.data_dir, file))
-            jpg_file.Upload()
+        for file in os.listdir(constants.data_dir):
+            if file.endswith(".jpg"):
+                print(f"Uploading {file} to GDrive")
+                jpg_file = drive.CreateFile({
+                    "title": file,
+                    "parents": [{"id": batch_folder.get('id')}],
+                    "mimeType": "image/jpeg"
+                })
+                jpg_file.SetContentFile(os.path.join(constants.data_dir, file))
+                jpg_file.Upload()
 
-    print(f"Label files ready on GDrive at ErukaLabels/{current_timestamp}")
+        print(f"Label files ready on GDrive at ErukaLabels/{current_timestamp}")
 
