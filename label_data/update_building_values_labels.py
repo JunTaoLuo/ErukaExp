@@ -63,7 +63,7 @@ if __name__ == "__main__":
         for line, row in enumerate(building_labels):
             num_labels += 1
             parcelid = row["parcelid"]
-            building_value = row["building_value"]
+            building_value = row["building_value"].lower()
 
             # building_value must be empty, numeric or "error"
             if building_value:
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             print(f"Uploading label {i}")
             params = dict(constants.db_params)
             params["parcelid"] = row["parcelid"]
-            building_value = row["building_value"]
+            building_value = row["building_value"].lower()
             year = row["year"]
             handwritten = row["handwritten"] == "1"
             params["update"] = building_value or year or handwritten

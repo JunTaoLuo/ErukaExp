@@ -1,4 +1,5 @@
 import argparse
+import csv
 import constants
 import cv2
 import imutils
@@ -106,6 +107,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Script for downloading new samples for manual labeling")
+    parser.add_argument('-c', '--csv', help='an input csv file of the parcelids to retrieve')
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     parser.add_argument('-su', '--skip-upload', action='store_true', help='do not upload to google drive')
     parser.add_argument('-p', '--parcelid', help='download sample for specific parcel ID, this option overrides N and does not record the sample as downloaded')
@@ -143,6 +145,11 @@ if __name__ == "__main__":
     with db.connect() as conn:
         if args.parcelid:
             parcelids.append(args.parcelid)
+        elif args.csv:
+            with open(args.csv, "r") as f:
+                csv = csv.reader(f)
+                for row in csv:
+                    parcelids.append(row[0])
         else:
             if args.verbose:
                 print(query)
