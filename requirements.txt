@@ -11,3 +11,6 @@ tqdm
 transformers
 torch
 pydrive
+scikit-learn
+seaborn
+matplotlib
