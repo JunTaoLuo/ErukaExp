@@ -150,6 +150,7 @@ if __name__ == "__main__":
                 csv = csv.reader(f)
                 for row in csv:
                     parcelids.append(row[0])
+            parcelids.sort() # sorting to ensure they appear in order on labels csv file
         else:
             if args.verbose:
                 print(query)

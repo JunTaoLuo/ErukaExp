@@ -13,7 +13,7 @@ if __name__ == "__main__":
         description="Script for sampling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     parser.add_argument('-g', '--gdrive', nargs=1, required=True, help='indicate the GDrive folder containing the results')
-    parser.add_argument('-c', '--count', nargs=1, type=int, required=False, default=100, help='indicate the number of results to sasmple')
+    parser.add_argument('-c', '--count', type=int, required=False, default=100, help='indicate the number of results to sample')
     args = parser.parse_args()
 
     print(f"Getting results from GDrive at {args.gdrive}")
@@ -86,8 +86,10 @@ if __name__ == "__main__":
                 index += 1
 
             parcelid = row["parcelid"]
-            fout.write(f"'{parcelid},{row['building_value']},{row['year']},{row['handwritten']}\n")
             image_file = [file for file in file_list if file['title'] == f'{parcelid}.jpg']
+            if len(image_file) == 0:
+                continue
             image_file[0].GetContentFile(os.path.join(constants.data_dir, f'{parcelid}.jpg'))
+            fout.write(f"'{parcelid},{row['building_value']},{row['year']},{row['handwritten']}\n")
 
     os.remove(results_file)
