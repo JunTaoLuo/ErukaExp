@@ -14,3 +14,4 @@ pydrive
 scikit-learn
 seaborn
 matplotlib
+wandb

@@ -8,3 +8,4 @@ database.yaml
 __pycache__/
 label_data/data
 eruka/
+modeling_pipeline/wandb/
