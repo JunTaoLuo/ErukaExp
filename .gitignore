@@ -9,3 +9,4 @@ __pycache__/
 label_data/data
 eruka/
 modeling_pipeline/wandb/
+modeling_pipeline/matrices

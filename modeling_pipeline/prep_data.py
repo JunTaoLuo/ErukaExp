@@ -33,7 +33,8 @@ def read_features(engine):
                     hs.number_of_parcels, hs.date_of_sale, hs.appraisal_area, hs.total_sales_records, hs.sale_price,
                     hs.style, hs.grade, hs.exterior_wall_type, hs.basement, hs.heating, hs.air_conditioning, hs.total_rooms,
                     hs.full_bath, hs.half_bath, hs.fireplaces, hs.garage_type, hs.finished_sq_ft, hs.total_finish_area,
-                    hs.first_floor_area, hs.half_floor_area, hs.finished_basement
+                    hs.first_floor_area, hs.half_floor_area, hs.finished_basement, hs.garage_capacity 
+                    hs.grade_grouped, hs.grade_numeric, hs.basement_grouped, hs.garage_type_grouped
 
             FROM processed.building_info bi JOIN processed.historic_sales hs USING(parcelid)
          '''
@@ -41,8 +42,11 @@ def read_features(engine):
     feats = pd.read_sql(sql, engine)
     
     # Dropping columns we don't want to use for analysis
+    # Of note: we use grade_numeric instead of grade_grouped as categorical 
+    
     feats = feats.drop(['live_sqft', 'class_description', 'date_of_sale', 'total_sales_records',
-                        'sale_price'], axis=1)
+                        'sale_price', 'grade_grouped', 'grade', 'basement', 'garage_type',
+                        'finished_sq_ft', 'total_finish_area', 'first_floor_area'], axis=1)
     
     return feats
                 
@@ -86,7 +90,8 @@ def process_features(X_df):
     
     # Converting categorical features into dummies, adding an extra category for NA
     X_df = pd.get_dummies(X_df, columns=['prop_class_code', 'style', 'appraisal_area',
-                                         'exterior_wall_type', 'heating', 'air_conditioning'], dummy_na = True)
+                                         'exterior_wall_type', 'heating', 'air_conditioning', 'basement_grouped',
+                                         'garage_type_grouped'], dummy_na = True)
     
 
     # keep only numeric features so we don't run into problems with different classes (e.g. linear regression),
@@ -105,3 +110,4 @@ def process_features(X_df):
     
 ## TODO on pipeline:
 # End outcome of running this should be to write the outputs to matrices folder
+# Add feature combination flags (some of the bigger dummies)

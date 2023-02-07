@@ -19,7 +19,7 @@ create table processed.building_info as
 
 -- Join only keeps the parcels that merge into monthlytax
 create table processed.historic_sales as 
-	(select hs.*, mt.prop_class_code, mt.class_description 
+	(select hs.*, mt.prop_class_code, mt.class_description
 	 from cleaned.historic_sales hs join cleaned.monthly_tax mt on hs.parcelid = mt.parcelid
 	 where mt.prop_class_code in ({class_codes})
 	 );
@@ -61,3 +61,82 @@ delete from processed.building_info
 -- Dropping unnecessary columns in the datasets
 alter table processed.building_info
 	drop column sqft;
+
+
+-- Creating columns that will be used in the analysis
+
+-- Making a livable sqft proportion
+alter table processed.building_info
+	add column live_sqft_prop double precision;
+update processed.building_info bi
+	set live_sqft_prop = live_sqft::double precision/(attic_sqft+bsmt_sqft+sqft_flr1+sqft_flr2+sqft_flrh);
+
+-- Combine garage type categories (removing + sign)
+alter table processed.historic_sales
+	add column garage_type_grouped varchar(250);
+update processed.historic_sales
+	set garage_type_grouped = garage_type;
+
+update processed.historic_sales
+	set garage_type_grouped = replace(garage_type_grouped, '+', '');
+
+update processed.historic_sales
+	set garage_type_grouped = TRIM(garage_type_grouped);
+
+-- Grouping values in basement
+alter table processed.historic_sales
+	add column basement_grouped varchar(200);
+
+update processed.historic_sales
+	set basement_grouped = 'Crawl Space'
+where basement = 'Crawl Space';
+
+update processed.historic_sales
+	set basement_grouped = 'Basement'
+where basement != 'Crawl Space' and basement is not null;
+
+-- Grouping values in grade
+alter table processed.historic_sales
+	add column grade_grouped varchar(200),
+	add column grade_numeric int;
+
+update processed.historic_sales
+	set grade_grouped = grade
+where grade is not null;
+
+update processed.historic_sales
+	set grade_grouped = 'Exceptional'
+where grade_grouped in ('Outstanding', 'Exceptional', 'Exceptional+', 'Extraordinary');
+
+update processed.historic_sales
+	set grade_grouped = 'Excellent'
+where grade_grouped in ('Excellent', 'Excellent+');
+
+-- Creating a numeric variable for grade
+update processed.historic_sales
+	set grade_numeric = 9
+where grade_grouped = 'Exceptional';
+
+update processed.historic_sales
+	set grade_numeric = 8
+where grade_grouped = 'Excellent';
+
+update processed.historic_sales
+	set grade_numeric = 7
+where grade_grouped = 'Very Good';
+
+update processed.historic_sales
+	set grade_numeric = 6
+where grade_grouped = 'Good';
+
+update processed.historic_sales
+	set grade_numeric = 5
+where grade_grouped = 'Average';
+
+update processed.historic_sales
+	set grade_numeric = 3
+where grade_grouped = 'Fair';
+
+update processed.historic_sales
+	set grade_numeric = 1
+where grade_grouped = 'Poor';
