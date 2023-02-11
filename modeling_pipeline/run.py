@@ -59,12 +59,18 @@ def train(modeltype, X_train, y_train, seed):
 def predict(reg, X_test):
     return reg.predict(X_test)
     
-def run_experiment(modeltype, n, X_train, X_test, y_train, y_test, seed):
+def run_experiment(modeltype, n, X_train, X_test, y_train, y_test, num_cv_splits, seed):
+    
+    full_data_used = True
+    if n < len(X_train):
+        full_data_used = False
     
     wandb.init(project='eruka-housing', entity='gormleylab',
                name=f'{modeltype}_{n}',
                config={'modeltype': modeltype,
-                       'n': n})
+                       'n': n,
+                       'full_data_used': full_data_used,
+                       'num_cv_splits': num_cv_splits})
         
     model = train(modeltype, X_train, y_train, seed)
     
@@ -73,8 +79,8 @@ def run_experiment(modeltype, n, X_train, X_test, y_train, y_test, seed):
     
     # Calculating cross-validated metrics 5 splits (make splits an argument)
     cross_val_mses = cross_val_score(model, X_train, y_train, scoring='neg_mean_squared_error',
-                                     cv=5, n_jobs=-2)
-    cross_val_r2 = cross_val_score(model, X_train, y_train, scoring='r2', cv=5, n_jobs=-2)
+                                     cv=num_cv_splits, n_jobs=-2)
+    cross_val_r2 = cross_val_score(model, X_train, y_train, scoring='r2', cv=num_cv_splits, n_jobs=-2)
     
     
     # Metrics to log
@@ -113,7 +119,8 @@ if __name__ == '__main__':
     parser.add_argument('-regen', '--regen_matrices', action='store_true', required=False, help='rerun creation of train-test matrices or use previously stored')
     parser.add_argument('-sh', '--shuffle', action='store_true', required=False, help='shuffle training data')
     parser.add_argument('-n', type=int, action='store', default=100000, required=False, help="max number of rows to use in train data")
-    
+    parser.add_argument('-splits', type=int, action='store', default=5, required=False, help="number of splits for cross-validation metrics")
+
     # Model-related arguments
     parser.add_argument('mtype', action='store', choices = ['random_forest', 'linear_regression'], help="name of model type to run")
 
@@ -155,9 +162,10 @@ if __name__ == '__main__':
     
     # Get model type and hyperparameters
     modeltype = args.mtype
+    num_cv_splits = args.splits
     
     # Print some important outputs
     print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
     
-    run_experiment(modeltype, n, X_train, X_test, y_train, y_test, seed)    
+    run_experiment(modeltype, n, X_train, X_test, y_train, y_test, num_cv_splits, seed)    
     
