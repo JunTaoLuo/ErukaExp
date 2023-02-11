@@ -5,6 +5,7 @@ import os
 script_dir = os.path.dirname(__file__)
 template_dir = os.path.join(script_dir, "sql_templates")
 data_dir = os.path.join(script_dir, "data")
+samples_dir = os.path.join(script_dir, "samples")
 
 # Files
 building_labels_prefix = "building_labels"
