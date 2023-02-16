@@ -51,7 +51,8 @@ def shuffle_data(X, y, seed):
     return X, y
 
 def train(modeltype, X_train, y_train, seed,
-          n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features):
+          n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+          alpha):
     '''
     args:
         - modeltype: a string of the model class to train. E.g., 'random_forest', 'linear_regression'. See the command line
@@ -79,7 +80,7 @@ def train(modeltype, X_train, y_train, seed,
         reg = LinearRegression()
         
     elif modeltype=='poisson':
-        reg = PoissonRegressor()
+        reg = PoissonRegressor(alpha=alpha)
             
     reg.fit(X_train, y_train)
     
@@ -95,9 +96,35 @@ def predict(reg, X):
     '''
     
     return reg.predict(X)
+
+def plot_true_pred(y_pred, y_true):
+    '''
+    args:
+        - y_pred: numpy array of predicted values
+        - y_true: numpy array of true label values
+    outputs:
+        - matplotlib ax object configured to plot y-true against y-pred
+    '''
+    # TODO: add argument to color the scatter points by another feature value
+    
+    f, ax = plt.subplots(figsize=(10,10))
+    ax.set_title('Predicted vs. true value')
+    ax.scatter(y_true, y_pred, c='crimson')
+    
+    # Adding x=y line
+    p1 = max(max(y_true), max(y_true))
+    p2 = min(min(y_pred), min(y_pred))
+    ax.plot([p1, p2], [p1, p2], 'b-')
+    
+    ax.set_xlabel('True Values', fontsize=15)
+    ax.set_ylabel('Predictions', fontsize=15)
+    ax.axis('equal')
+    
+    return ax
     
 def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
-                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features):
+                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                   alpha):
     '''
     desc: stitches the whole training-prediction pipeline together as an 'experiment'
     
@@ -130,13 +157,15 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
                        'max_depth': max_depth,
                        'min_samples_split': min_samples_split,
                        'min_samples_leaf': min_samples_leaf,
-                       'max_features': max_features})
+                       'max_features': max_features,
+                       'alpha': alpha})
         
     # Note: here, I pull the hyperparameters from the wandb init config (rather than directly using the command line variables)
     # This is to allow for wandb sweeps to be configured for hyperparamter search (where we loop across different config vals)
         
     model = train(modeltype, X_train, y_train, seed,
-                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features)
+                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                   alpha)
     
     y_pred = predict(model, X_test)
     y_train_pred = predict(model, X_train)
@@ -155,26 +184,31 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
     test_r2 = r2_score(y_test, y_pred)
     train_r2 = r2_score(y_train, y_train_pred)
     
+    # Plots to log
+    
+    # Plot true vs predicted value
+    true_pred_plot_test = plot_true_pred(y_pred, y_test)
+    true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
+    
+    # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
+    
+    # Log residuals plot for test data
+    # wandb.sklearn.plot_residuals(model, X_test, y_test)
+    
+    # Log feature importance if the method allows for it    
+    wandb.sklearn.plot_feature_importances(model)
+        
     wandb.log({'test_rmse': test_rmse, 
             'test_r2': test_r2,
             'train_rmse': train_rmse,
             'train_r2': train_r2,
             'cv_rmse': cv_rmse,
-            'cv_r2': cv_r2
+            'cv_r2': cv_r2,
+            'true_pred_plot_test': wandb.Image(true_pred_plot_test),
+            'true_pred_plot_train': wandb.Image(true_pred_plot_train)
             })
-    
-    # Plots to log
-    
-    # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
-    
-    # Log residuals plot for test data
-    wandb.sklearn.plot_residuals(model, X_test, y_test)
-    
-    # Log feature importance if the method allows for it    
-    wandb.sklearn.plot_feature_importances(model)
 
     # TODO plots:
-    # Real vs. predicted value, colored by different characteristics
     # Deep dive into understanding who the model
         
     wandb.finish()
@@ -200,6 +234,8 @@ if __name__ == '__main__':
     parser.add_argument('--min_samples_split', type=int, action='store', default=2, required=False, help="min samples required to split at node (tree models)")
     parser.add_argument('--min_samples_leaf', type=int, action='store', default=1, required=False, help="min samples required at leaf node (tree models)")
     parser.add_argument('--max_features', action='store', choices=['sqrt', 'log2', 'all'], default='sqrt', required=False, help="max features to consider when splitting (tree models)")
+
+    parser.add_argument('--alpha', action='store', type=float, default=1.0, required=False, help="regularization strength (linear models), 0=no regularization")
 
     # Miscellaneous arguments
     parser.add_argument('-seed', type=int, action='store', default=12345, required=False, help="random seed to be used for all random processes")
@@ -250,12 +286,16 @@ if __name__ == '__main__':
     modeltype = args.modeltype
     
     n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
+    alpha = args.alpha
+    
     
     num_cv_splits = args.cvsplits
     
     # Print some important outputs as sanity check
     print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
-        
+    print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+ 
+    # Run the experiment       
     run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
-                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features)    
-    
+                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                   alpha)    
