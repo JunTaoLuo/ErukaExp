@@ -139,7 +139,11 @@ def process_features(X_df):
     outputs:
         - numpy ndarray of X_df with feature transformations that make it ready for 
         modeling (e.g., imputation, converting categorical vars to dummies, scaling) 
+        - list of all the feature names in column order (so we can add this back post-modeling)
     '''
+    
+    # Pull out column names
+    colnames = X_df.columns.values
     
     # Imputing features as defined in function above
     X_df = impute_features(X_df)
@@ -152,15 +156,17 @@ def process_features(X_df):
     scaler = StandardScaler().fit(X_df)
     X_df = scaler.transform(X_df)
 
-    return X_df
+    return X_df, colnames
 
-def gen_matrices(X_train, X_test, y_train, y_test, matrix_path='matrices'):
+def gen_matrices(X_train, X_test, y_train, y_test, colnames, matrix_path='matrices'):
     '''
     args:
         - train and test pandas dataframes or numpy arrays ready for modeling
-        - matrix_path: path to write the matrices to
+        - colnames: column headers as a list, to write to a txt file (for postmodeling)
+        - matrix_path: path to write the matrices and column headers to
     outputs:
         - train and test matrices as numpy arrays, written as txt files and returned
+        - colnames list written as a txt file to the specified path
     purpose:
         - arrays are faster than pandas dfs for processing
     '''
@@ -175,7 +181,11 @@ def gen_matrices(X_train, X_test, y_train, y_test, matrix_path='matrices'):
     np.savetxt(f"{matrix_path}/X_test.txt", X_test)
     np.savetxt(f"{matrix_path}/y_train.txt", y_train)
     np.savetxt(f"{matrix_path}/y_test.txt", y_test)
-
+    
+    # Export colnames
+    with open(f"{matrix_path}/colnames.txt", 'w') as file:
+        file.write('\n'.join(colnames))
+    
     return X_train, X_test, y_train, y_test
     
 def main(engine, keep='simple', test_size=0.2, random_state=4, matrix_path='matrices'):
@@ -187,11 +197,11 @@ def main(engine, keep='simple', test_size=0.2, random_state=4, matrix_path='matr
     '''
     df = read_data(engine, keep)
     X_train, X_test, y_train, y_test = split_data(df, test_size, random_state)
-    X_train = process_features(X_train)
-    X_test = process_features(X_test)
-    X_train, X_test, y_train, y_test = gen_matrices(X_train, X_test, y_train, y_test, matrix_path)
+    X_train, colnames = process_features(X_train)
+    X_test, colnames = process_features(X_test)
+    X_train, X_test, y_train, y_test = gen_matrices(X_train, X_test, y_train, y_test, colnames, matrix_path)
     
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, colnames
 
 
     
