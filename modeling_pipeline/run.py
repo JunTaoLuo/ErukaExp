@@ -288,7 +288,6 @@ if __name__ == '__main__':
     n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
     alpha = args.alpha
     
-    
     num_cv_splits = args.cvsplits
     
     # Print some important outputs as sanity check
