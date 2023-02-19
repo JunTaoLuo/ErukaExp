@@ -14,11 +14,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script for uploading labeling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
-    parser.add_argument('-g', '--gdrive', nargs=1, required=False, help='indicate the GDrive folder containing the results',)
+    parser.add_argument('-g', '--gdrivefolder', nargs=1, required=False, help='indicate the GDrive folder by name containing the results',)
+    parser.add_argument('-i', '--gdriveid', nargs=1, required=False, help='indicate the GDrive folder by id containing the results',)
     args = parser.parse_args()
 
-    if len(args.gdrive) > 0 and args.gdrive[0]:
-        print(f"Getting results from GDrive at {args.gdrive}")
+    if (args.gdrivefolder and args.gdrivefolder[0]) or (args.gdriveid and args.gdriveid[0]):
+        print(f"Getting results from GDrive at {args.gdrivefolder}|{args.gdriveid}")
 
         # ErukaLabels folder id
         labels_dir_id = "1WJ50iIVfCKRFPYOjBPvCYaSke8JOiLWz"
@@ -29,14 +30,20 @@ if __name__ == "__main__":
         drive = GoogleDrive(ga)
 
         folder_id = ""
-        file_list = drive.ListFile({'q': f"'{labels_dir_id}' in parents and trashed=false"}).GetList()
-        for file in file_list:
-            if(file['title'] == args.gdrive[0]):
-                folder_id = file['id']
-                break
 
-        if not folder_id:
-            print(f"Could not find folder {args.gdrive} on GDrive")
+        if args.gdrivefolder and args.gdrivefolder[0]:
+            file_list = drive.ListFile({'q': f"'{labels_dir_id}' in parents and trashed=false"}).GetList()
+            for file in file_list:
+                if(file['title'] == args.gdrivefolder[0]):
+                    folder_id = file['id']
+                    break
+            if not folder_id:
+                print(f"Could not find folder {args.gdrivefolder} on GDrive")
+                exit(1)
+        elif args.gdriveid and args.gdriveid[0]:
+            folder_id = args.gdriveid[0]
+        else:
+            print(f"Must provide GDrive folder by name or id")
             exit(1)
 
         export_url = ""
@@ -47,7 +54,7 @@ if __name__ == "__main__":
                 break
 
         if not export_url:
-            print(f"Could not find file {constants.building_labels_prefix} in {args.gdrive} on GDrive")
+            print(f"Could not find file {constants.building_labels_prefix} in {args.gdrivefolder} on GDrive")
             exit(1)
 
         headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
