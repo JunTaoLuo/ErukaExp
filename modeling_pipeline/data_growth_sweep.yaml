@@ -1,0 +1,24 @@
+program: run.py
+name: data_growth_sweep
+method: grid
+metric:
+  name: cv_rmse
+  goal: minimize
+parameters:
+  n:
+    values: [1000, 2000, 3000, 4000, 5000, 6000, 6500, 7000, 7500, 8000]
+  n_estimators:
+    values: [2500]
+  max_depth:
+    values: [200]
+  min_samples_split:
+    values: [4]
+  max_features:
+    values: ['sqrt']
+command:
+  - C:/Users/mihir/gitclones/ErukaExp/eruka/Scripts/python.exe
+  - ${program}
+  - 'random_forest'
+  - --shuffle
+  - --seed=5637
+  - ${args}

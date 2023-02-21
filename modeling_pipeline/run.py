@@ -238,7 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', action='store', type=float, default=1.0, required=False, help="regularization strength (linear models), 0=no regularization")
 
     # Miscellaneous arguments
-    parser.add_argument('-seed', type=int, action='store', default=12345, required=False, help="random seed to be used for all random processes")
+    parser.add_argument('--seed', type=int, action='store', default=12345, required=False, help="random seed to be used for all random processes")
 
     args = parser.parse_args()
 
