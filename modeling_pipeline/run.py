@@ -97,6 +97,18 @@ def predict(reg, X):
     
     return reg.predict(X)
 
+def get_perc_error(y_pred, y_true):
+    '''
+    args:
+        - y_pred: numpy array of predicted values
+        - y_true: numpy array of true label values
+    outputs:
+        - numpy array of % error for each observation
+    '''
+    
+    return 100*abs((y_pred - y_true)/y_true)
+    
+
 def plot_true_pred(y_pred, y_true):
     '''
     args:
@@ -184,6 +196,14 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
     test_r2 = r2_score(y_test, y_pred)
     train_r2 = r2_score(y_train, y_train_pred)
     
+    test_perc_error = get_perc_error(y_pred, y_test)
+    median_perc_error = np.percentile(test_perc_error, 50)
+    within_5_perc_error = 100*(np.mean(test_perc_error <= 5))
+    within_10_perc_error = 100*(np.mean(test_perc_error <= 10))
+    within_20_perc_error =100*(np.mean(test_perc_error <= 20))
+    
+    
+    
     # Plots to log
     
     # Plot true vs predicted value
@@ -204,6 +224,10 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
             'train_r2': train_r2,
             'cv_rmse': cv_rmse,
             'cv_r2': cv_r2,
+            'median_test_error_perc': median_perc_error,
+            'within_5perc_testerror': within_5_perc_error,
+            'within_10perc_testerror': within_10_perc_error,
+            'within_20perc_testerror': within_20_perc_error,      
             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
             'true_pred_plot_train': wandb.Image(true_pred_plot_train)
             })
