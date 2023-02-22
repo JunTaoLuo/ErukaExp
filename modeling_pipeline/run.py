@@ -196,7 +196,7 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
     test_r2 = r2_score(y_test, y_pred)
     train_r2 = r2_score(y_train, y_train_pred)
     test_mae = mean_absolute_error(y_test, y_pred)
-    train_mae = mean_absolute_error(y_test, y_pred)
+    train_mae = mean_absolute_error(y_train, y_train_pred)
     
     test_perc_error = get_perc_error(y_pred, y_test)
     median_perc_error = np.percentile(test_perc_error, 50)
