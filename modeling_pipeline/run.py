@@ -17,7 +17,7 @@ import pandas as pd
 
 from sklearn.linear_model import LinearRegression, PoissonRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.model_selection import cross_val_score
 
 import seaborn as sns
@@ -195,6 +195,8 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
     train_rmse = mean_squared_error(y_train, y_train_pred, squared=False)
     test_r2 = r2_score(y_test, y_pred)
     train_r2 = r2_score(y_train, y_train_pred)
+    test_mae = mean_absolute_error(y_test, y_pred)
+    train_mae = mean_absolute_error(y_test, y_pred)
     
     test_perc_error = get_perc_error(y_pred, y_test)
     median_perc_error = np.percentile(test_perc_error, 50)
@@ -224,6 +226,8 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
             'train_r2': train_r2,
             'cv_rmse': cv_rmse,
             'cv_r2': cv_r2,
+            'train_mae': train_mae,
+            'test_mae': test_mae,
             'median_test_error_perc': median_perc_error,
             'within_5perc_testerror': within_5_perc_error,
             'within_10perc_testerror': within_10_perc_error,
