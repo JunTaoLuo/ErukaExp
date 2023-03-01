@@ -13,14 +13,16 @@ import warnings
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-def read_labels(engine, keep):
+def read_labels(engine, keep, ocr_path):
     '''
     args:
         - engine: sql engine object, connecting to the database
-        - keep: either 'all' (all labeled points) or 
-                'simple' (remove nonstandard cases where year is entered or card is handwritten)
+        - keep: either 'all' (all handlabeled points) or 
+                'simple' (remove nonstandard handlabeled cases where year is entered or card is handwritten)
+        - ocr_path: filepath to the OCR predicted labels (remove when we transition this to database)
     output:
-        - pandas dataframe of the labeled observations
+        - pandas dataframe of the hand-labled observations
+        - pandas dataframe of ocr-labeled observations
     '''
 
     if keep == 'all':
@@ -30,13 +32,19 @@ def read_labels(engine, keep):
         sql = '''SELECT parcelid, building_value
                  FROM samples.building_values 
                  WHERE year is null and handwritten is null and building_value is not null'''
-
-    labels = pd.read_sql(sql, engine)
+                 
+    hand_labels = pd.read_sql(sql, engine)
+    print(f"Read labels: there are {len(hand_labels)} hand-labeled observations")
+                 
+    ocr_labels = pd.read_csv(ocr_path)
+    print(f"Read labels: there are {len(ocr_labels)} OCR-labeled observations") 
     
-    print(f"Read labels: there are {len(labels)} observations")
-
-    return labels
-
+    # Process/format OCR labels to match hand labels
+    ocr_labels = ocr_labels[['parcelid', 'prediction']]
+    ocr_labels.rename({"prediction": "building_value"}, axis=1, inplace=True)
+        
+    return hand_labels, ocr_labels
+    
 def read_features(engine):
     '''
     args:
@@ -62,8 +70,7 @@ def read_features(engine):
                     hs.first_floor_area, hs.half_floor_area, hs.finished_basement, hs.garage_capacity, 
                     hs.grade_grouped, hs.grade_numeric, hs.basement_grouped, hs.garage_type_grouped
             FROM processed.building_info bi JOIN processed.historic_sales hs USING(parcelid)
-            WHERE parcelid IN (SELECT parcelid FROM samples.building_values 
-                                WHERE year is null and handwritten is null and building_value is not null)
+            WHERE parcelid IN (SELECT parcelid FROM samples.labels)
          '''
          
     feats = pd.read_sql(sql, engine)
@@ -73,40 +80,53 @@ def read_features(engine):
                         'sale_price', 'grade_grouped', 'grade', 'basement', 'garage_type',
                         'finished_sq_ft', 'total_finish_area', 'first_floor_area'], axis=1)
     
+    # Converting to dummy variables here before merging and splitting data because we want the same # of features in train and test
+    # Basically, this isn't sensitive to whether certain classes are observed in certain splits
+    feats = pd.get_dummies(feats, columns=['prop_class_code', 'style', 'appraisal_area',
+                                         'exterior_wall_type', 'heating', 'air_conditioning', 'basement_grouped',
+                                         'garage_type_grouped'], dummy_na = True)
+    
     print(f"Finished reading features: {feats.shape[1]} columns were read in")
     
     return feats
                 
-def read_data(engine, keep):
+def read_data(engine, keep, ocr_path):
     '''
     args:
         - engine: sql engine connecting to the database
         - keep: either 'all' (all labeled points) or 
                 'simple' (remove nonstandard cases where year is entered or card is handwritten)
+        - ocr_preds_path: filepath to the OCR predicted labels 
     output:
-        - pandas dataframe of the labeled observations merged with feature data
+        - pandas dataframe of the hand labeled observations merged with feature data
+        - pandas datarame of ocr labeled observations merged with feature data (if use_ocr is true)
     '''
     
-    labels = read_labels(engine, keep)
+    hand_labels, ocr_labels = read_labels(engine, keep, ocr_path)
     features = read_features(engine)
-
-    merged = pd.merge(labels, features, on='parcelid')
-
-    if len(labels) != len(merged):
-        warnings.warn(f"There are {len(labels) - len(merged)} labeled rows getting dropped when merging to feature data.") 
     
-    if merged['year_built'].isna().sum() > 0:
-        warnings.warn(f"There is missing feature data for labels where there shouldn't be.")
-        
-    # Converting to dummy variables here before splitting data because we want same # of features in train and test
-    merged = pd.get_dummies(merged, columns=['prop_class_code', 'style', 'appraisal_area',
-                                         'exterior_wall_type', 'heating', 'air_conditioning', 'basement_grouped',
-                                         'garage_type_grouped'], dummy_na = True)
-        
-    print(f"Merged labels and features. The data shape is {merged.shape}")
+    hand_merged = pd.merge(hand_labels, features, on='parcelid')
     
-    return merged
-
+    if len(hand_labels) != len(hand_merged):
+        warnings.warn(f"There are {len(hand_labels) - len(hand_merged)} handlabeled parcels getting dropped when merging to feature data.") 
+        
+    if hand_merged['year_built'].isna().sum() > 0:
+        warnings.warn(f"There is missing feature data for handlabeled parcels where there shouldn't be.")
+            
+    print(f"Merged hand labels and features. The data shape is {hand_merged.shape}")
+    
+    ocr_merged = pd.merge(ocr_labels, features, on='parcelid')
+        
+    if len(ocr_labels) != len(ocr_merged):
+        warnings.warn(f"There are {len(ocr_labels) - len(ocr_merged)} ocr parcels getting dropped when merging to feature data.") 
+    
+    if ocr_merged['year_built'].isna().sum() > 0:
+        warnings.warn(f"There is missing feature data for ocr parcels where there shouldn't be.")
+        
+    print(f"Merged OCR labels and features. The data shape is {ocr_merged.shape}")
+        
+    return hand_merged, ocr_merged
+            
 def split_data(df, test_size = 0.2, random_state = 4):
     '''
     args:
@@ -122,7 +142,7 @@ def split_data(df, test_size = 0.2, random_state = 4):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = random_state)
 
-    print(f'''Data was split into into X, y, train and test. The shapes are:
+    print(f'''Handlabeled data was split into into X, y, train and test. The shapes are:
               \nX_train: {X_train.shape}
               \nX_test: {X_test.shape}
               \ny_train: {y_train.shape}
@@ -178,30 +198,28 @@ def process_features(X_df):
 
     return X_df, colnames
 
-def gen_matrices(X_train, X_test, y_train, y_test, colnames, matrix_path='matrices'):
+def gen_matrices(X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames, matrix_path='matrices'):
     '''
     args:
-        - train and test pandas dataframes or numpy arrays ready for modeling
+        - train and test pandas dataframes or numpy arrays ready for modeling. Training data options for for hand-labeled only, and ocr-only.
+          test data only comes from hand-labeled data.
         - colnames: column headers as a list, to write to a txt file (for postmodeling)
         - matrix_path: path to write the matrices and column headers to
     outputs:
-        - train and test matrices as numpy arrays, written as txt files and returned
+        - train and test matrices as numpy arrays, written as txt files and returned. Both options of hand-labeled only and ocr-only are exported
         - colnames list written as a txt file to the specified path
     purpose:
         - arrays are faster than pandas dfs for processing
     '''
-    for df in [X_train, X_test, y_train, y_test]:
+    for df in [X_train_hand, X_train_ocr, y_train_hand, y_train_ocr, X_test, y_test]:
         if not isinstance(df, np.ndarray):
             df = df.to_numpy()
             
-    # X_train = np.to_numpy(X_train)
-    # X_test = np.to_numpy(X_test)
-    # y_train = y_train.to_numpy()
-    # y_test = y_test.to_numpy()
-    
-    np.savetxt(f"{matrix_path}/X_train.txt", X_train)
+    np.savetxt(f"{matrix_path}/X_train_hand.txt", X_train_hand)
+    np.savetxt(f"{matrix_path}/X_train_ocr.txt", X_train_ocr)
     np.savetxt(f"{matrix_path}/X_test.txt", X_test)
-    np.savetxt(f"{matrix_path}/y_train.txt", y_train)
+    np.savetxt(f"{matrix_path}/y_train_hand.txt", y_train_hand)
+    np.savetxt(f"{matrix_path}/y_train_ocr.txt", y_train_ocr)
     np.savetxt(f"{matrix_path}/y_test.txt", y_test)
     
     print("Matrices saved to file")
@@ -212,22 +230,33 @@ def gen_matrices(X_train, X_test, y_train, y_test, colnames, matrix_path='matric
     
     print("Column names saved to file")
     
-    return X_train, X_test, y_train, y_test
+    return X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test
     
-def main(engine, keep='simple', test_size=0.2, random_state=4, matrix_path='matrices'):
+def main(engine, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
     '''
     Main function that stitches everything in this file together, to generate the
     train and test matrices written to file. 
     
     Args are documented in their individual functions defined above.
     '''
-    df = read_data(engine, keep)
-    X_train, X_test, y_train, y_test = split_data(df, test_size, random_state)
-    X_train, colnames = process_features(X_train)
-    X_test, colnames = process_features(X_test)
-    X_train, X_test, y_train, y_test = gen_matrices(X_train, X_test, y_train, y_test, colnames, matrix_path)
+    hand_df, ocr_df = read_data(engine, keep, ocr_path)
     
-    return X_train, X_test, y_train, y_test, colnames
+    # Splitting hand-labeled data into train and test, processing features
+    X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df, test_size, random_state)
+    # X_train_hand = impute_features(X_train_hand)
+    X_train_hand, colnames = process_features(X_train_hand)
+    # X_test = impute_features(X_test)
+    X_test, colnames = process_features(X_test)
+    
+    # Prepping OCR data as a train set (we don't use OCR data as test, because the labels have uncertainty)
+    X_train_ocr = ocr_df.drop(columns=['parcelid', 'building_value'])
+    y_train_ocr = ocr_df['building_value']
+    # X_train_ocr = impute_features(X_train_ocr)
+    X_train_ocr, colnames = process_features(X_train_ocr)
+    
+    X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test = gen_matrices(X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames, matrix_path)
+    
+    return X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames
 
 
     

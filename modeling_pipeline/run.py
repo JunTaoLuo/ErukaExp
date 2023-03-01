@@ -134,7 +134,7 @@ def plot_true_pred(y_pred, y_true):
     
     return ax
     
-def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
+def run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha):
     '''
@@ -143,6 +143,7 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
     args:
         - modeltype: a string of the model class (see argument parser for options)
         - n: max number of observations to train on 
+        - trainsource: whether to train using ocr-only, hand-labeled only or both
         - full_data_used: boolean to indicate whether full training data used (i.e., n = len(X_train))
         - train and test X and y matrices as numpy arrays
         - num_cv_splits: number of splits to make in training for cross-validation
@@ -163,6 +164,7 @@ def run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_tes
                name=f'{modeltype}_{n}',
                config={'modeltype': modeltype,
                        'n': n,
+                       'trainsource': trainsource,
                        'full_data_used': full_data_used,
                        'num_cv_splits': num_cv_splits,
                        'n_estimators': n_estimators,
@@ -253,6 +255,8 @@ if __name__ == '__main__':
     parser.add_argument('--n', type=int, action='store', default=100000, required=False, help="max number of rows to use in train data")
     parser.add_argument('--cvsplits', type=int, action='store', default=4, required=False, help="number of splits for cross-validation metrics")
     parser.add_argument('--testprop', type=float, action='store', default=0.2, required=False, help="proportion of data to hold out for test")
+    parser.add_argument('--trainsource', action='store', choices=['ocr', 'hand', 'both'], default='hand', required=False, help="whether to use hand-labeled data, ocr data, or both for training")
+
 
     # Model-related arguments
     parser.add_argument('modeltype', action='store', choices = ['random_forest', 'linear_regression', 'poisson'], help="name of model type to run") # the only required positional argument
@@ -281,11 +285,15 @@ if __name__ == '__main__':
     # Get chosen seed from command line (or default if nothing entered)
     seed = args.seed
     
+    # TODO: make code below more efficient by directly reading in relevant matrix based on trainsource type
+    
     # Either load data or recreate matrices (based on command line flag)
     if not args.regen_matrices:
-        X_train = np.genfromtxt('matrices/X_train.txt')
+        X_train_hand = np.genfromtxt('matrices/X_train_hand.txt')
+        X_train_ocr = np.genfromtxt('matrices/X_train_ocr.txt')
         X_test = np.genfromtxt('matrices/X_test.txt')
-        y_train = np.genfromtxt('matrices/y_train.txt')
+        y_train_hand = np.genfromtxt('matrices/y_train_hand.txt')
+        y_train_ocr = np.genfromtxt('matrices/y_train_ocr.txt')
         y_test = np.genfromtxt('matrices/y_test.txt')
         
         # Reading column names into colnames
@@ -293,9 +301,24 @@ if __name__ == '__main__':
             colnames = [line for line in file]
             
     else:
-        testprop = args.testprop # proportion of 
-        X_train, X_test, y_train, y_test, colnames = utils.main(db_engine, keep='simple', test_size=testprop, 
-                                                      random_state=seed, matrix_path='matrices')
+        testprop = args.testprop # proportion of observations to keep in test set
+        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine, keep='simple', 
+                                                                                                    ocr_path='oc-carb-fine-tuning-10k_results.csv',
+                                                                                                    test_size=testprop, 
+                                                                                            random_state=seed, matrix_path='matrices')
+        
+    # Create desired X_train based on OCR-only, hand-labeled only, or both
+    if args.trainsource == 'hand':
+        X_train = X_train_hand
+        y_train = y_train_hand
+    elif args.trainsource == 'ocr':
+        X_train = X_train_ocr
+        y_train = y_train_ocr
+    elif args.trainsource == 'both':
+        X_train = np.concatenate((X_train_hand, X_train_ocr), axis=0)
+        y_train = np.concatenate((y_train_hand, y_train_ocr), axis=0)
+        
+    trainsource = args.trainsource
     
     # Shuffle data if desired
     if args.shuffle:
@@ -323,6 +346,6 @@ if __name__ == '__main__':
     print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
  
     # Run the experiment       
-    run_experiment(modeltype, n, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
+    run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha)    
