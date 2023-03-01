@@ -12,3 +12,4 @@ label_data/samples
 eruka/
 modeling_pipeline/wandb/
 modeling_pipeline/matrices
+modeling_pipeline/*.csv

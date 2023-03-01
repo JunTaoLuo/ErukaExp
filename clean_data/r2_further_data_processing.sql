@@ -19,7 +19,7 @@ create table processed.building_info as
 
 -- Join only keeps the parcels that merge into monthlytax
 create table processed.historic_sales as 
-	(select hs.*, mt.prop_class_code, mt.class_description
+	(select hs.*, mt.prop_class_code, mt.class_description, mt.area_description
 	 from cleaned.historic_sales hs join cleaned.monthly_tax mt on hs.parcelid = mt.parcelid
 	 where mt.prop_class_code in ({class_codes})
 	 );
@@ -64,6 +64,28 @@ alter table processed.building_info
 
 
 -- Creating columns that will be used in the analysis
+
+-- Grouping appraisal area by collapsing subtypes
+alter table processed.historic_sales
+	add column area_description_grouped varchar(350);
+update processed.historic_sales
+	set area_description_grouped = area_description;
+
+-- Keeping only things to the left of the parenthesis
+update processed.historic_sales
+	set area_description_grouped = regexp_replace(area_description_grouped, '(?<=\().*', '', 'g');
+
+-- Removing numbers and the opening parenthesis
+update processed.historic_sales
+	set area_description_grouped = regexp_replace(area_description_grouped, '[\d\()]', '', 'g');
+
+-- Removing double blank spaces
+update processed.historic_sales
+	set area_description_grouped = regexp_replace(area_description_grouped, '(\s{2,})', '', 'g');
+
+-- Trimming to finish
+update processed.historic_sales
+	set area_description_grouped = trim(area_description_grouped);
 
 -- Making a livable sqft proportion
 alter table processed.building_info
