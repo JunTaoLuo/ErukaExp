@@ -133,10 +133,11 @@ def plot_true_pred(y_pred, y_true):
     ax.axis('equal')
     
     return ax
+
     
-def run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
+def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                   alpha):
+                   alpha, comments=''):
     '''
     desc: stitches the whole training-prediction pipeline together as an 'experiment'
     
@@ -145,10 +146,13 @@ def run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y
         - n: max number of observations to train on 
         - trainsource: whether to train using ocr-only, hand-labeled only or both
         - full_data_used: boolean to indicate whether full training data used (i.e., n = len(X_train))
+        - keep: 'all' (all handlabeled points) or 
+                'simple' (remove nonstandard handlabeled cases where year is entered or card is handwritten)
         - train and test X and y matrices as numpy arrays
         - num_cv_splits: number of splits to make in training for cross-validation
         - seed: random seed
         - hyperparameters across all models (e.g., n_estimators, max_depth, etc.)
+        - comments: string to feed in any other model specific info (e.g., some niche thing we want to test out in wandb)
     outputs:
         - logs several metrics and outputs to a wandb run on the server.
           The config in wandb init is the key metadata about the run,
@@ -166,13 +170,15 @@ def run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y
                        'n': n,
                        'trainsource': trainsource,
                        'full_data_used': full_data_used,
+                       'keep': keep,
                        'num_cv_splits': num_cv_splits,
                        'n_estimators': n_estimators,
                        'max_depth': max_depth,
                        'min_samples_split': min_samples_split,
                        'min_samples_leaf': min_samples_leaf,
                        'max_features': max_features,
-                       'alpha': alpha})
+                       'alpha': alpha,
+                       'comments':comments})
         
     # Note: here, I pull the hyperparameters from the wandb init config (rather than directly using the command line variables)
     # This is to allow for wandb sweeps to be configured for hyperparamter search (where we loop across different config vals)
@@ -239,8 +245,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y
             })
 
     # TODO plots:
-    # Deep dive into understanding who the model
-        
+    
+    
+            
     wandb.finish()
     
 
@@ -256,7 +263,8 @@ if __name__ == '__main__':
     parser.add_argument('--cvsplits', type=int, action='store', default=4, required=False, help="number of splits for cross-validation metrics")
     parser.add_argument('--testprop', type=float, action='store', default=0.2, required=False, help="proportion of data to hold out for test")
     parser.add_argument('--trainsource', action='store', choices=['ocr', 'hand', 'both'], default='hand', required=False, help="whether to use hand-labeled data, ocr data, or both for training")
-
+    parser.add_argument('--keep', action='store', choices=['simple', 'all'], default='all', required=False, help='''whether to use all hand-labeled data including handwritten/year, with appropriate flags as features,
+                                                                                                                    or just the simple hand-labeled cases where year is null and handwritten is null''')
 
     # Model-related arguments
     parser.add_argument('modeltype', action='store', choices = ['random_forest', 'linear_regression', 'poisson'], help="name of model type to run") # the only required positional argument
@@ -268,9 +276,11 @@ if __name__ == '__main__':
     parser.add_argument('--max_features', action='store', choices=['sqrt', 'log2', 'all'], default='sqrt', required=False, help="max features to consider when splitting (tree models)")
 
     parser.add_argument('--alpha', action='store', type=float, default=1.0, required=False, help="regularization strength (linear models), 0=no regularization")
-
+    
     # Miscellaneous arguments
     parser.add_argument('--seed', type=int, action='store', default=12345, required=False, help="random seed to be used for all random processes")
+    parser.add_argument('--comments', action='store', default='', required=False, help="Any comments on the model")
+
 
     args = parser.parse_args()
 
@@ -288,6 +298,9 @@ if __name__ == '__main__':
     # TODO: make code below more efficient by directly reading in relevant matrix based on trainsource type
     
     # Either load data or recreate matrices (based on command line flag)
+    
+    keep = args.keep
+    
     if not args.regen_matrices:
         X_train_hand = np.genfromtxt('matrices/X_train_hand.txt')
         X_train_ocr = np.genfromtxt('matrices/X_train_ocr.txt')
@@ -302,10 +315,11 @@ if __name__ == '__main__':
             
     else:
         testprop = args.testprop # proportion of observations to keep in test set
-        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine, keep='simple', 
-                                                                                                    ocr_path='oc-carb-fine-tuning-10k_results.csv',
+        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine, keep=keep, 
+                                                                                                    ocr_path='ocr_results.csv',
                                                                                                     test_size=testprop, 
-                                                                                            random_state=seed, matrix_path='matrices')
+                                                                                                    random_state=seed, 
+                                                                                                    matrix_path='matrices')
         
     # Create desired X_train based on OCR-only, hand-labeled only, or both
     if args.trainsource == 'hand':
@@ -344,8 +358,10 @@ if __name__ == '__main__':
     # Print some important outputs as sanity check
     print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
     print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+    
+    comments = args.comments
  
     # Run the experiment       
-    run_experiment(modeltype, n, trainsource, full_data_used, X_train, X_test, y_train, y_test, num_cv_splits, seed,
+    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                   alpha)    
+                   alpha, comments)    

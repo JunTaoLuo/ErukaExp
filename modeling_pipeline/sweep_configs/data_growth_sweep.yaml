@@ -1,12 +1,12 @@
 program: run.py
-name: data_growth_sweep_both 
+name: data_growth_sweep_both
 method: grid
 metric:
-  name: cv_rmse
+  name: test_rmse
   goal: minimize
 parameters:
   n:
-    values: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000]
+    values: [1000, 2000, 3000, 5000, 7500, 9000, 10000, 11000]
   n_estimators:
     values: [2500]
   max_depth:
@@ -21,5 +21,6 @@ command:
   - 'random_forest'
   - --trainsource=both
   - --shuffle
-  - --seed=4421
+  - --comments=filterocr
+  - --seed=2839
   - ${args}
