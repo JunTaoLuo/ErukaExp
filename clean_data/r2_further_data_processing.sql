@@ -91,7 +91,8 @@ update processed.historic_sales
 alter table processed.building_info
 	add column live_sqft_prop double precision;
 update processed.building_info bi
-	set live_sqft_prop = live_sqft::double precision/(attic_sqft+bsmt_sqft+sqft_flr1+sqft_flr2+sqft_flrh);
+	set live_sqft_prop = live_sqft::double precision/(attic_sqft+bsmt_sqft+sqft_flr1+sqft_flr2+sqft_flrh)
+	where attic_sqft+bsmt_sqft+sqft_flr1+sqft_flr2+sqft_flrh != 0;
 
 -- Combine garage type categories (removing + sign)
 alter table processed.historic_sales
