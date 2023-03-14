@@ -263,7 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('--cvsplits', type=int, action='store', default=4, required=False, help="number of splits for cross-validation metrics")
     parser.add_argument('--testprop', type=float, action='store', default=0.2, required=False, help="proportion of data to hold out for test")
     parser.add_argument('--trainsource', action='store', choices=['ocr', 'hand', 'both'], default='hand', required=False, help="whether to use hand-labeled data, ocr data, or both for training")
-    parser.add_argument('--keep', action='store', choices=['simple', 'all'], default='all', required=False, help='''whether to use all hand-labeled data including handwritten/year, with appropriate flags as features,
+    parser.add_argument('--keep', action='store', choices=['simple', 'all'], default='simple', required=False, help='''whether to use all hand-labeled data including handwritten/year, with appropriate flags as features,
                                                                                                                     or just the simple hand-labeled cases where year is null and handwritten is null''')
 
     # Model-related arguments

@@ -44,6 +44,8 @@ def read_labels(engine, keep, ocr_path):
     ocr_labels = pd.read_csv(ocr_path)
     print(f"Read labels: there are {len(ocr_labels)} OCR-labeled observations") 
     
+    ocr_labels['prediction'] = pd.to_numeric(ocr_labels['prediction'], errors='coerce') # conver prediction to numeric
+    
     # Filter out OCR predictions based on conditions:
     
     ## 1. Remove parcelids for which we already have hand-labeled data
@@ -170,6 +172,7 @@ def split_data(df, test_size = 0.2, random_state = 4):
     '''
     
     y = df['building_value']
+    
     X = df.drop(columns=['parcelid', 'building_value'])
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = random_state)
@@ -275,12 +278,11 @@ def main(engine, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', 
     
     # Splitting hand-labeled data into train and test, processing features
     X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df, test_size, random_state)
-    # X_train_hand = impute_features(X_train_hand)
+    X_train_hand = impute_features(X_train_hand)
     X_train_hand, colnames = process_features(X_train_hand)
-    # X_test = impute_features(X_test)
+    X_test = impute_features(X_test)
     X_test, colnames = process_features(X_test)
     
-    # Prepping OCR data as a train set (we don't use OCR data as test, because the labels have uncertainty)
     X_train_ocr = ocr_df.drop(columns=['parcelid', 'building_value'])
     y_train_ocr = ocr_df['building_value']
     # X_train_ocr = impute_features(X_train_ocr)
