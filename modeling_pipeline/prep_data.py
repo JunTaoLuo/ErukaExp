@@ -177,7 +177,7 @@ def split_data(df, test_size = 0.2, random_state = 4):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = random_state)
 
-    print(f'''Handlabeled data was split into into X, y, train and test. The shapes are:
+    print(f'''Data was split into into X, y, train and test. The shapes are:
               \nX_train: {X_train.shape}
               \nX_test: {X_test.shape}
               \ny_train: {y_train.shape}
@@ -275,17 +275,31 @@ def main(engine, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', 
     Args are documented in their individual functions defined above.
     '''
     hand_df, ocr_df = read_data(engine, keep, ocr_path)
-
-    # Splitting hand-labeled data into train and test, processing features
-    X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df, test_size, random_state)
-    X_train_hand = impute_features(X_train_hand)
+    
+    if keep=='all':
+        
+        # If all observations kept, only make train-test split based on cases that are no year + not handwritten, so test
+        # set only contains observations like that (our ground truth)
+        hand_df_simple = hand_df[(hand_df['appraisal_target_year'] == 1933) & (hand_df['appraisal_handwritten_flag'] == 0)]        
+        X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df_simple, test_size, random_state)
+        
+        # Concat the rest of the data (i.e., cases with year or handwritten) to training only
+        hand_df_yearhand = hand_df[~hand_df['parcelid'].isin(hand_df_simple['parcelid'])]
+        y_train_yearhand = hand_df_yearhand['building_value']
+        X_train_yearhand = hand_df_yearhand.drop(columns=['parcelid', 'building_value'])
+        
+        X_train_hand = pd.concat([X_train_hand, X_train_yearhand])
+        y_train_hand = pd.concat([y_train_hand, y_train_yearhand])
+        
+    else:
+        # Else, since all handlabeled data has no year/is not handwritten, can use train-test split directly
+        X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df, test_size, random_state)
+        
     X_train_hand, colnames = process_features(X_train_hand)
-    X_test = impute_features(X_test)
     X_test, colnames = process_features(X_test)
 
     X_train_ocr = ocr_df.drop(columns=['parcelid', 'building_value'])
     y_train_ocr = ocr_df['building_value']
-    # X_train_ocr = impute_features(X_train_ocr)
     X_train_ocr, colnames = process_features(X_train_ocr)
 
     X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test = gen_matrices(X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames, matrix_path)
