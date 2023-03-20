@@ -197,6 +197,8 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
 
     # Metrics to log
+    
+    # Standard regression stats
     cv_rmse = np.mean(np.sqrt(np.abs(cross_val_mses)))
     cv_r2 = np.mean(cross_val_r2)
     test_rmse = mean_squared_error(y_test, y_pred, squared=False)
@@ -206,11 +208,21 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     test_mae = mean_absolute_error(y_test, y_pred)
     train_mae = mean_absolute_error(y_train, y_train_pred)
 
+    # Error distance stats (how wrong were we)
     test_perc_error = get_perc_error(y_pred, y_test)
     median_perc_error = np.percentile(test_perc_error, 50)
     within_5_perc_error = 100*(np.mean(test_perc_error <= 5))
     within_10_perc_error = 100*(np.mean(test_perc_error <= 10))
     within_20_perc_error =100*(np.mean(test_perc_error <= 20))
+    
+    # Error on subsets
+    test_rmse_25perc_lowest = mean_squared_error(y_test[y_test <= 2250], y_pred[y_test <= 2250], squared=False)
+    test_rmse_50perc_lowest = mean_squared_error(y_test[y_test <= 3085], y_pred[y_test <= 3085], squared=False)
+    test_rmse_75perc_lowest = mean_squared_error(y_test[y_test <= 4110], y_pred[y_test <= 4110], squared=False)
+    test_rmse_85perc_lowest = mean_squared_error(y_test[y_test <= 4850], y_pred[y_test <= 4850], squared=False)
+    test_rmse_90perc_lowest = mean_squared_error(y_test[y_test <= 5489], y_pred[y_test <= 5489], squared=False)
+    test_rmse_95perc_lowest = mean_squared_error(y_test[y_test <= 6714], y_pred[y_test <= 6714], squared=False)
+    
 
 
 
@@ -240,13 +252,15 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
             'within_5perc_testerror': within_5_perc_error,
             'within_10perc_testerror': within_10_perc_error,
             'within_20perc_testerror': within_20_perc_error,
+            'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
+            'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
+            'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
+            'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
+            'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
+            'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
             'true_pred_plot_train': wandb.Image(true_pred_plot_train)
             })
-
-    # TODO plots:
-
-
 
     wandb.finish()
 
