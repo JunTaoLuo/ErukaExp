@@ -6,7 +6,7 @@ metric:
   goal: minimize
 parameters:
   n:
-    values: [ 5000, 7000, 9000, 11000, 13000, 15000, 17000]
+    values: [ 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000]
   ocrthreshold:
     values: [-0.4, -0.3, -0.25, -0.2]
   n_estimators:
@@ -23,9 +23,9 @@ command:
   - 'random_forest'
   - --trainsource=both
   - --shuffle
-  - --comments=sweep_oc-carb-fine-tuning-10k
+  - --comments=sweep_oc-carb-fine-tuning-10k-full
   - --seed=2839
-  - --ocrsource=/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/oc-carb-fine-tuning-10k-raw-predictions_0.csv
+  - --ocrsource=/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/oc-carb-fine-tuning-10k-raw-predictions.csv
   - --skiplargen
   - -regen
   - ${args}
