@@ -137,7 +137,7 @@ def plot_true_pred(y_pred, y_true):
 
 def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                   alpha, comments=''):
+                   alpha, ocr_threshold, comments=''):
     '''
     desc: stitches the whole training-prediction pipeline together as an 'experiment'
 
@@ -178,6 +178,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                        'min_samples_leaf': min_samples_leaf,
                        'max_features': max_features,
                        'alpha': alpha,
+                       'ocr_threshold': ocr_threshold,
                        'comments':comments})
 
     # Note: here, I pull the hyperparameters from the wandb init config (rather than directly using the command line variables)
@@ -263,9 +264,13 @@ if __name__ == '__main__':
     parser.add_argument('--cvsplits', type=int, action='store', default=4, required=False, help="number of splits for cross-validation metrics")
     parser.add_argument('--testprop', type=float, action='store', default=0.2, required=False, help="proportion of data to hold out for test")
     parser.add_argument('--trainsource', action='store', choices=['ocr', 'hand', 'both'], default='hand', required=False, help="whether to use hand-labeled data, ocr data, or both for training")
-    parser.add_argument('--ocrsource', action='store', required=False, help="Path to the ocr results")
     parser.add_argument('--keep', action='store', choices=['simple', 'all'], default='simple', required=False, help='''whether to use all hand-labeled data including handwritten/year, with appropriate flags as features,
                                                                                                                     or just the simple hand-labeled cases where year is null and handwritten is null''')
+
+    # OCR related parameters
+    parser.add_argument('--ocrthreshold', type=float, action='store', required=False, help="OCR Threshold")
+    parser.add_argument('--ocrsource', action='store', required=False, help="Path to the ocr results")
+    parser.add_argument('--skiplargen', action='store_true', required=False, help="Skip run when n > number of training samples")
 
     # Model-related arguments
     parser.add_argument('modeltype', action='store', choices = ['random_forest', 'linear_regression', 'poisson'], help="name of model type to run") # the only required positional argument
@@ -316,7 +321,9 @@ if __name__ == '__main__':
 
     else:
         testprop = args.testprop # proportion of observations to keep in test set
-        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine, keep=keep,
+        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine,
+                                                                                                    ocr_threshold=args.ocrthreshold,
+                                                                                                    keep=keep,
                                                                                                     ocr_path=args.ocrsource,
                                                                                                     test_size=testprop,
                                                                                                     random_state=seed,
@@ -344,25 +351,32 @@ if __name__ == '__main__':
     if args.n < len(X_train):
         full_data_used = False
 
-    n = min(args.n, len(X_train)) # if user entered more than length of training data, then all training observations used
-    X_train = X_train[:n, :]
-    y_train = y_train[:n]
+    if args.skiplargen:
+        n = args.n
+    else:
+        n = min(args.n, len(X_train)) # if user entered more than length of training data, then all training observations used
 
-    # Get model type and hyperparameters
-    modeltype = args.modeltype
+    if args.n <= len(X_train):
+        n = args.n
+        X_train = X_train[:n, :]
+        y_train = y_train[:n]
 
-    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
-    alpha = args.alpha
+        # Get model type and hyperparameters
+        modeltype = args.modeltype
 
-    num_cv_splits = args.cvsplits
+        n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
+        alpha = args.alpha
+        ocr_threshold = args.ocrthreshold
 
-    # Print some important outputs as sanity check
-    print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
-    print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+        num_cv_splits = args.cvsplits
 
-    comments = args.comments
+        # Print some important outputs as sanity check
+        print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
+        print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
-    # Run the experiment
-    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
-                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                   alpha, comments)
+        comments = args.comments
+
+        # Run the experiment
+        run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
+                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                    alpha, ocr_threshold, comments)
