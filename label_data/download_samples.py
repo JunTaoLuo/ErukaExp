@@ -10,7 +10,7 @@ from pytesseract import image_to_osd, Output
 import re
 import requests as rq
 import sys
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from jinja2 import Environment, FileSystemLoader
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -20,8 +20,39 @@ from datetime import datetime
 ownership_source = 'https://wedge.hcauditor.org/view/re/{}/2021/imagesOwnerCard'
 ownership_reference_regex = '.*convert\/(.*.tif)\/.*'
 ownership_file = 'https://wedge.hcauditor.org/convert/{}/'
+franklin_source = 'https://audr-apps.franklincountyohio.gov/ParcelSheet/{}'
 
-def download_file(parcelid, verbose):
+def download_franklin_file(parcelid, verbose):
+    print(f"Processing {parcelid}")
+
+    # Download PDF
+    ownership_file_formated = franklin_source.format(parcelid)
+    print(f"Downloading ownership card PDF {ownership_file_formated}")
+
+    response = rq.get(ownership_file_formated)
+    if not response.ok:
+        print(f"Failed to get {ownership_file_formated}")
+        return "PDF download failure"
+
+    # Convert to jpg
+    try:
+        pages = p2i.convert_from_bytes(response.content)
+    except:
+        return "JPEG conversion failure"
+
+    if len(pages) == 0:
+        print("Failed to convert PDF to JPEG")
+        return "JPEG conversion failure"
+
+    jpeg_file = os.path.join(constants.data_dir, f"{parcelid}.jpg")
+    if os.path.exists(jpeg_file):
+        os.remove(jpeg_file)
+    pages[0].save(jpeg_file, "JPEG")
+
+    return "Success"
+
+
+def download_hamilton_file(parcelid, verbose):
     print(f"Processing {parcelid}")
 
     # Retrieve ownership card page source (HTML)
@@ -111,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     parser.add_argument('-su', '--skip-upload', action='store_true', help='do not upload to google drive')
     parser.add_argument('-p', '--parcelid', help='download sample for specific parcel ID, this option overrides N and does not record the sample as downloaded')
+    parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='verbose output, including executed SQL queries')
     parser.add_argument('entries', metavar="N", type=int, help="Number of entries to retrieve", default=20, nargs='?')
     args = parser.parse_args()
 
@@ -139,6 +171,7 @@ if __name__ == "__main__":
 
     params = dict(constants.db_params)
     params["entries"] = args.entries
+    params["schema"] = args.schema
 
     query = template.render(params)
 
@@ -156,7 +189,8 @@ if __name__ == "__main__":
                 print(query)
 
             # Get list of parcelids from database
-            results = conn.execute(query).fetchall()
+            results = conn.execute(text(query)).fetchall()
+            conn.commit()
             for row in results:
                 parcelids.append(row[0])
             parcelids.sort() # sorting to ensure they appear in order on labels csv file
@@ -178,14 +212,20 @@ if __name__ == "__main__":
 
         # Download OCs
         for parcelid in parcelids:
-            status = download_file(parcelid, args.verbose)
+            if args.schema == "hamilton":
+                status = download_hamilton_file(parcelid, args.verbose)
+            elif args.schema == "franklin":
+                status = download_franklin_file(parcelid, args.verbose)
 
             if status != "Success":
                 params = dict(constants.db_params)
+                params["schema"] = args.schema
                 params["parcelid"] = parcelid
                 params["error"] = status
                 query = template.render(params)
-                conn.execute(query)
+                conn.execute(text(query))
+                conn.commit()
+                print(f"Error: {status}")
             else:
                 downloaded_parcelids.append(parcelid)
 

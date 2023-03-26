@@ -1,4 +1,4 @@
-INSERT INTO {{ samples_error_table }} (parcelid, error)
+INSERT INTO {{ schema }}.{{ error_table }} (parcelid, error)
 VALUES ('{{ parcelid }}', '{{ error }}')
 ON CONFLICT (parcelid) DO UPDATE
     SET error = '{{ error }}';
