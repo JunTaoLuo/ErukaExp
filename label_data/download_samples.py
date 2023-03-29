@@ -230,7 +230,7 @@ if __name__ == "__main__":
                 downloaded_parcelids.append(parcelid)
 
         # Write labels csv file
-        with open(constants.building_labels_file, "w") as f:
+        with open(constants.building_values_file, "w") as f:
             f.write(f"parcelid,building_value,year,handwritten\n")
             for parcelid in downloaded_parcelids:
                 f.write(f"'{parcelid},,,\n") # the ' preserves the value as string in google sheets
@@ -272,13 +272,13 @@ if __name__ == "__main__":
         batch_folder.Upload()
 
         # Upload csv
-        print(f"Uploading {constants.building_labels_name} to GDrive")
+        print(f"Uploading {constants.building_values_name} to GDrive")
         csv_file = drive.CreateFile({
-            "title": constants.building_labels_name,
+            "title": constants.building_values_name,
             "parents": [{"id": batch_folder.get('id')}],
             "mimeType": "text/csv"
         })
-        csv_file.SetContentFile(constants.building_labels_file)
+        csv_file.SetContentFile(constants.building_values_file)
         csv_file.Upload()
 
         for file in os.listdir(constants.data_dir):

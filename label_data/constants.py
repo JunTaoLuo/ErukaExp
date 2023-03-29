@@ -8,9 +8,9 @@ data_dir = os.path.join(script_dir, "data")
 samples_dir = os.path.join(script_dir, "samples")
 
 # Files
-building_labels_prefix = "building_labels"
-building_labels_name = f"{building_labels_prefix}.csv"
-building_labels_file = os.path.join(data_dir, building_labels_name)
+building_values_prefix = "building_values"
+building_values_name = f"{building_values_prefix}.csv"
+building_values_file = os.path.join(data_dir, building_values_name)
 ref_csv_file = os.path.join(data_dir, "ref.csv")
 
 # Parameters
