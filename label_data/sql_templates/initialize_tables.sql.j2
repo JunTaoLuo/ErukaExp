@@ -72,6 +72,17 @@ CREATE TABLE IF NOT EXISTS {{ schema }}.{{ building_values_table }} (
     handwritten       boolean
 );
 
+{% if schema == hamilton_schema %}
+
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ building_values_table }}_1930 (
+    parcelid          text NOT NULL PRIMARY KEY,
+    building_value    double precision,
+    "year"            bigint,
+    handwritten       boolean
+);
+
+{% endif %}
+
 CREATE TABLE IF NOT EXISTS samples.new_table (
     parcelid          text NOT NULL PRIMARY KEY,
     building_value    double precision,

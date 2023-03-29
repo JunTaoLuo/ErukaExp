@@ -142,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     parser.add_argument('-su', '--skip-upload', action='store_true', help='do not upload to google drive')
     parser.add_argument('-p', '--parcelid', help='download sample for specific parcel ID, this option overrides N and does not record the sample as downloaded')
-    parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='verbose output, including executed SQL queries')
+    parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='which schema to use, hamilton or franklin')
     parser.add_argument('entries', metavar="N", type=int, help="Number of entries to retrieve", default=20, nargs='?')
     args = parser.parse_args()
 

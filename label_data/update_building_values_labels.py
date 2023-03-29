@@ -14,9 +14,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script for uploading labeling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
-    parser.add_argument('-g', '--gdrivefolder', nargs=1, required=False, help='indicate the GDrive folder by name containing the results',)
-    parser.add_argument('-i', '--gdriveid', nargs=1, required=False, help='indicate the GDrive folder by id containing the results',)
+    parser.add_argument('-f', '--file', nargs=1, required=False, default=constants.building_labels_prefix, help='indicate the result file by name in the specified folder')
+    parser.add_argument('-g', '--gdrivefolder', nargs=1, required=False, help='indicate the GDrive folder by name containing the results')
+    parser.add_argument('-i', '--gdriveid', nargs=1, required=False, help='indicate the GDrive folder by id containing the results')
+    parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='which schema to use, hamilton or franklin')
     args = parser.parse_args()
+
+    result_path = os.path.join(constants.data_dir, f"{args.file}.csv")
 
     if (args.gdrivefolder and args.gdrivefolder[0]) or (args.gdriveid and args.gdriveid[0]):
         print(f"Getting results from GDrive at {args.gdrivefolder}|{args.gdriveid}")
@@ -49,22 +53,22 @@ if __name__ == "__main__":
         export_url = ""
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
         for file in file_list:
-            if(file['title'] == constants.building_labels_prefix):
+            if(file['title'] == args.file):
                 export_url = file['exportLinks']['text/csv']
                 break
 
         if not export_url:
-            print(f"Could not find file {constants.building_labels_prefix} in {args.gdrivefolder} on GDrive")
+            print(f"Could not find file {args.file} in {args.gdrivefolder} on GDrive")
             exit(1)
 
         headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
         res = requests.get(export_url, headers=headers)
-        open(constants.building_labels_file, "wb").write(res.content)
+        open(result_path, "wb").write(res.content)
 
     num_labels = 0
 
     # Check csv file for syntax
-    with open(constants.building_labels_file, "r") as f:
+    with open(result_path, "r") as f:
         building_labels = csv.DictReader(f)
 
         for line, row in enumerate(building_labels):
@@ -100,8 +104,8 @@ if __name__ == "__main__":
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
         sys.exit()
 
-    if not os.path.exists(constants.building_labels_file):
-        print(f'Results file: {constants.building_labels_file} not found')
+    if not os.path.exists(result_path):
+        print(f'Results file: {result_path} not found')
         sys.exit()
 
     eruka_db_str = os.environ['ERUKA_DB']
@@ -110,13 +114,15 @@ if __name__ == "__main__":
     jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
     template = jinja_env.get_template("update_building_values_labels.sql.j2")
 
-    with db.connect() as conn, open(constants.building_labels_file, "r") as f:
+    with db.connect() as conn, open(result_path, "r") as f:
         building_labels = csv.DictReader(f)
         print(f"Uploading {num_labels} labels")
 
         for i, row in enumerate(building_labels):
             print(f"Uploading label {i}")
             params = dict(constants.db_params)
+            params["building_values_table"] = args.file
+            params["schema"] = args.schema
             params["parcelid"] = row["parcelid"]
             building_value = row["building_value"].lower()
             year = row["year"]
