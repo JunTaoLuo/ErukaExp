@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script for uploading labeling results from csv file")
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
-    parser.add_argument('-f', '--file', nargs=1, required=False, default=constants.building_values_prefix, help='indicate the result file by name in the specified folder')
+    parser.add_argument('-f', '--file', required=False, default=constants.building_values_prefix, help='indicate the result file by name in the specified folder')
     parser.add_argument('-g', '--gdrivefolder', nargs=1, required=False, help='indicate the GDrive folder by name containing the results')
     parser.add_argument('-i', '--gdriveid', nargs=1, required=False, help='indicate the GDrive folder by id containing the results')
     parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='which schema to use, hamilton or franklin')
