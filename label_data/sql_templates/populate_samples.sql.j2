@@ -1,3 +1,5 @@
+{% if schema == hamilton_schema %}
+
 CREATE TABLE samples.relevant_bi_temp AS (
         SELECT *
         FROM {{ building_info_source }}
@@ -22,7 +24,7 @@ CREATE TABLE samples.bi_hs_match_temp AS (
         FROM samples.relevant_bi_temp rb JOIN samples.relevant_hs_temp rh USING(parcelid) -- only keep parcels that match between datasets
         WHERE rb.year_built = rh.year_built -- only keep those with consistent year_buitl information, so we know all columns relevant for that building
     );
-INSERT INTO {{ samples_label_table }} (
+INSERT INTO {{ schema }}.{{ label_table }} (
     parcelid,
     year_built,
     attic_sqft,
@@ -109,3 +111,123 @@ ON CONFLICT DO NOTHING;
 DROP TABLE samples.relevant_bi_temp;
 DROP TABLE samples.relevant_hs_temp;
 DROP TABLE samples.bi_hs_match_temp;
+
+{% endif %}
+
+{% if schema == franklin_schema %}
+
+select
+    d."PARCEL ID" as PARCELID,
+    d."MAP ROUTING" as MAPROUTING,
+    d."CARD" as CARD,
+    d."RMTOT" as RMTOT,
+    d."RMBED" as RMBED,
+    d."RMFAM" as RMFAM,
+    d."RMDIN" as RMDIN,
+    d."FIXBATH" as FIXBATH,
+    d."FIXHALF" as FIXHALF,
+    d."LIVUNITS" as LIVUNITS,
+    d."STYLE" as STYLE,
+    d."STORIES" as STORIES,
+    d."ATTIC" as ATTIC,
+    d."BSMT" as BSMT,
+    d."FINBSMTAREA" as FINBSMTAREA,
+    d."EXTWALL" as EXTWALL,
+    d."UNFINAREA" as UNFINAREA,
+    d."RECROMAREA" as RECROMAREA,
+    d."HEAT" as HEAT,
+    d."FIXADDL" as FIXADDL,
+    d."FIXTOT" as FIXTOT,
+    d."WBFP_S" as WBFP_S,
+    d."WBFP_O" as WBFP_O,
+    d."CARSPACESATT" as CARSPACESATT,
+    d."CARSPACESBSMT" as CARSPACESBSMT,
+    d."CARPORTSPACES" as CARPORTSPACES,
+    d."GRADE" as GRADE,
+    d."WELLSEPTIC" as WELLSEPTIC,
+    d."YRBLT" as YRBLT,
+    d."YRREMOD" as YRREMOD,
+    d."EFFYR" as EFFYR,
+    d."COND" as COND,
+    d."AREAFACT" as AREAFACT,
+    d."ADJAREA" as ADJAREA,
+    d."SHFACT" as SHFACT,
+    d."CNSTFACT" as CNSTFACT,
+    d."GRDFACT" as GRDFACT,
+    d."DEPR" as DEPR,
+    d."MKTADJ" as MKTADJ,
+    d."MGFA" as MGFA,
+    d."ADDNAREA" as ADDNAREA,
+    d."SFLA" as SFLA,
+    d."FLR1AREA" as FLR1AREA,
+    d."ADJRCNLD" as ADJRCNLD,
+    pt."TaxYear" as TaxYear,
+    pt."IASParcelId" as IASParcelId,
+    pt."ActiveYear" as ActiveYear,
+    pt."SiteAddress" as SiteAddress,
+    pt."LotNumber" as LotNumber,
+    pt."Neighborhood" as Neighborhood,
+    pt."OwnerName1" as OwnerName1,
+    pt."OwnerName2" as OwnerName2,
+    pt."OwnerAddress1" as OwnerAddress1,
+    pt."OwnerAddress2" as OwnerAddress2,
+    pt."TaxpayerName1" as TaxpayerName1,
+    pt."TaxpayerName2" as TaxpayerName2,
+    pt."TaxpayerAddress1" as TaxpayerAddress1,
+    pt."TaxpayerAddress2" as TaxpayerAddress2,
+    pt."Legal1" as Legal1,
+    pt."Legal2" as Legal2,
+    pt."Legal3" as Legal3,
+    pt."Acres" as Acres,
+    pt."CDQ" as CDQ,
+    pt."IsHomestead" as IsHomestead,
+    pt."IsHomesite" as IsHomesite,
+    pt."IsBor" as IsBor,
+    pt."IsSa" as IsSa,
+    pt."CurrentCauv" as CurrentCauv,
+    pt."IsCauvReturned" as IsCauvReturned,
+    pt."LUC" as LUC,
+    pt."LUCDesc" as LUCDesc,
+    pt."TaxDistrict" as TaxDistrict,
+    pt."TaxDistrictDesc" as TaxDistrictDesc,
+    pt."SchoolDistrict" as SchoolDistrict,
+    pt."SchoolDistrictDesc" as SchoolDistrictDesc,
+    pt."Township" as Township,
+    pt."City" as City,
+    pt."Jnvs" as Jnvs,
+    pt."Library" as Library,
+    pt."OtherPolsub" as OtherPolsub,
+    pt."ZipCode" as ZipCode,
+    pt."HistoricDistrict" as HistoricDistrict,
+    pt."SubCommonName" as SubCommonName,
+    pt."SubLegalName" as SubLegalName,
+    pt."CondoCommonName" as CondoCommonName,
+    pt."CondoLegalName" as CondoLegalName,
+    pt."GisAcres" as GisAcres,
+    pt."FullRate" as FullRate,
+    pt."EffectiveRate" as EffectiveRate,
+    pt."ReductionFactor" as ReductionFactor,
+    pt."NonBusinessRate" as NonBusinessRate,
+    pt."OwnOccRate" as OwnOccRate,
+    pt."LastSaleDate" as LastSaleDate,
+    pt."LastSaleAmount" as LastSaleAmount,
+    pt."LastSaleConvey" as LastSaleConvey,
+    pt."LastSaleParcelCount" as LastSaleParcelCount,
+    pt."ExemptStatus" as ExemptStatus,
+    pt."BankCode" as BankCode,
+    pt."SubCondo" as SubCondo,
+    pt."SubCondoLegal" as SubCondoLegal
+into {{ schema }}.{{ label_table }}
+from raw_franklin."Dwelling" d
+    join raw_franklin."Parcel_Tax" pt
+        on d."PARCEL ID" = pt."PARCEL ID" -- parcels that match with tax data
+where pt."LUC" in (510, 550, 520, 401, 530, 625, 404, 470) -- use code falls in correct types
+	and d."PARCEL ID" in
+		(select "PARCEL ID"
+		 from raw_franklin."Dwelling" d2
+		 group by "PARCEL ID"
+		 having (sum(case when d2."YRBLT" < 1930 then 1 else 0 end) = 1) and (count(*) = 1)
+		)
+	and d."STORIES" is not null; -- num stories not missing
+
+{% endif %}

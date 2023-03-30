@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from jinja2 import Environment, FileSystemLoader
 import constants
 
@@ -14,7 +14,8 @@ def initialize_tables(connection, env, params, verbose):
     if verbose:
         print(query)
 
-    connection.execute(query)
+    connection.execute(text(query))
+    connection.commit()
 
     print(".. done")
 
@@ -27,7 +28,8 @@ def populate_samples(connection, env, params, verbose):
     if verbose:
         print(query)
 
-    connection.execute(query)
+    connection.execute(text(query))
+    connection.commit()
 
     print(".. done")
 
@@ -35,6 +37,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Script for populating empty samples labels")
+    parser.add_argument('-s', '--schema', required=True, choices=['hamilton', 'franklin'], help='verbose output, including executed SQL queries')
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output, including executed SQL queries')
     args = parser.parse_args()
 
@@ -47,6 +50,13 @@ if __name__ == "__main__":
     db = create_engine(eruka_db_str)
     jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
 
+
+    template_params = dict(constants.db_params)
+    if args.schema == "hamilton":
+        template_params['schema'] = constants.db_params["hamilton_schema"]
+    elif args.schema == "franklin":
+        template_params['schema'] = constants.db_params["franklin_schema"]
+
     with db.connect() as conn:
-        initialize_tables(conn, jinja_env, constants.db_params, args.verbose)
-        populate_samples(conn, jinja_env, constants.db_params, args.verbose)
+        initialize_tables(conn, jinja_env, template_params, args.verbose)
+        populate_samples(conn, jinja_env, template_params, args.verbose)
