@@ -135,7 +135,9 @@ def plot_true_pred(y_pred, y_true):
     return ax
 
 
-def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
+def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, 
+                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931, 
+                   colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha, ocr_threshold, comments=''):
     '''
@@ -167,6 +169,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     wandb.init(project='eruka-housing', entity='gormleylab',
                name=f'{modeltype}_{n}',
                config={'modeltype': modeltype,
+                       'franklin': franklin,
                        'n': n,
                        'trainsource': trainsource,
                        'full_data_used': full_data_used,
@@ -224,14 +227,22 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     test_rmse_90perc_lowest = mean_squared_error(y_test[y_test <= 5489], y_pred[y_test <= 5489], squared=False)
     test_rmse_95perc_lowest = mean_squared_error(y_test[y_test <= 6714], y_pred[y_test <= 6714], squared=False)
     
-
-
+    # Franklin performance, if generalized model selected
+    franklin_1920_rmse = 0
+    franklin_1931_rmse = 0
+    
+    if franklin is True:
+        y_pred_franklin_1920 = predict(model, X_franklin_1920)
+        y_pred_franklin_1931 = predict(model, X_franklin_1931)
+        franklin_1920_rmse = mean_squared_error(y_franklin_1920, y_pred_franklin_1920, squared=False)
+        franklin_1931_rmse = mean_squared_error(y_franklin_1931, y_pred_franklin_1931, squared=False)
 
     # Plots to log
 
     # Plot true vs predicted value
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
     true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
+    
 
     # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
 
@@ -260,7 +271,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
             'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
             'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
-            'true_pred_plot_train': wandb.Image(true_pred_plot_train)
+            'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+            'franklin_1920_rmse': franklin_1920_rmse,
+            'franklin_1931_rmse': franklin_1931_rmse
             })
 
     wandb.finish()
@@ -288,6 +301,8 @@ if __name__ == '__main__':
 
     # Model-related arguments
     parser.add_argument('modeltype', action='store', choices = ['random_forest', 'linear_regression', 'poisson'], help="name of model type to run") # the only required positional argument
+
+    parser.add_argument('--franklin', action='store_true', required=False, help='whether to train generalizable model and test on franklin')
 
     parser.add_argument('--n_estimators', type=int, action='store', default=100, required=False, help="number of trees in forest (tree models)")
     parser.add_argument('--max_depth', type=int, action='store', default=10000000, required=False, help="max depth of tree (tree models)")
@@ -325,35 +340,57 @@ if __name__ == '__main__':
         X_train_hand = np.genfromtxt('matrices/X_train_hand.txt')
         X_train_ocr = np.genfromtxt('matrices/X_train_ocr.txt')
         X_test = np.genfromtxt('matrices/X_test.txt')
+        X_train_hand_sub = np.genfromtxt('matrices/X_train_hand_sub.txt')
+        X_train_ocr_sub = np.genfromtxt('matrices/X_train_ocr_sub.txt')
+        X_test_sub = np.genfromtxt('matrices/X_test_sub.txt')
         y_train_hand = np.genfromtxt('matrices/y_train_hand.txt')
         y_train_ocr = np.genfromtxt('matrices/y_train_ocr.txt')
         y_test = np.genfromtxt('matrices/y_test.txt')
+        X_franklin_1920 = np.genfromtxt('matrices/X_franklin_1920.txt')
+        X_franklin_1931 = np.genfromtxt('matrices/X_franklin_1931.txt')
+        y_franklin_1920 = np.genfromtxt('matrices/y_franklin_1920.txt')
+        y_franklin_1931 = np.genfromtxt('matrices/y_franklin_1931.txt')
 
         # Reading column names into colnames
         with open('matrices/colnames.txt', 'r') as file:
             colnames = [line for line in file]
+        with open('matrices/colnames_sub.txt') as file:
+            colnames_sub = [line for line in file]
 
     else:
         testprop = args.testprop # proportion of observations to keep in test set
-        X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames = utils.main(db_engine,
-                                                                                                    ocr_threshold=args.ocrthreshold,
+        X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, colnames, colnames_sub = utils.main(db_engine, 
+                                                                                                    ocr_threshold=args.ocrthreshold                                                                                                                                 
                                                                                                     keep=keep,
                                                                                                     ocr_path=args.ocrsource,
                                                                                                     test_size=testprop,
                                                                                                     random_state=seed,
                                                                                                     matrix_path='matrices')
 
-    # Create desired X_train based on OCR-only, hand-labeled only, or both
-    if args.trainsource == 'hand':
-        X_train = X_train_hand
-        y_train = y_train_hand
-    elif args.trainsource == 'ocr':
-        X_train = X_train_ocr
-        y_train = y_train_ocr
-    elif args.trainsource == 'both':
-        X_train = np.concatenate((X_train_hand, X_train_ocr), axis=0)
-        y_train = np.concatenate((y_train_hand, y_train_ocr), axis=0)
+    # Create desired X_train based on OCR-only, hand-labeled only, or both and generalized model/full model
+    if not args.franklin:
+        if args.trainsource == 'hand':
+            X_train = X_train_hand
+            y_train = y_train_hand
+        elif args.trainsource == 'ocr':
+            X_train = X_train_ocr
+            y_train = y_train_ocr
+        elif args.trainsource == 'both':
+            X_train = np.concatenate((X_train_hand, X_train_ocr), axis=0)
+            y_train = np.concatenate((y_train_hand, y_train_ocr), axis=0)
+    if args.franklin:
+        if args.trainsource == 'hand':
+            X_train = X_train_hand_sub
+            y_train = y_train_hand
+        elif args.trainsource == 'ocr':
+            X_train = X_train_ocr_sub
+            y_train = y_train_ocr
+        elif args.trainsource == 'both':
+            X_train = np.concatenate((X_train_hand_sub, X_train_ocr_sub), axis=0)
+            y_train = np.concatenate((y_train_hand, y_train_ocr), axis=0)
+        X_test = X_test_sub
 
+    franklin = args.franklin
     trainsource = args.trainsource
 
     # Shuffle data if desired
@@ -388,9 +425,9 @@ if __name__ == '__main__':
         print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
         print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
-        comments = args.comments
-
-        # Run the experiment
-        run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, colnames, num_cv_splits, seed,
-                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                    alpha, ocr_threshold, comments)
+    # Run the experiment
+    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, 
+                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931, 
+                   colnames, num_cv_splits, seed,
+                   n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                   alpha, ocr_threshold, comments)

@@ -65,6 +65,17 @@ alter table processed.building_info
 
 -- Creating columns that will be used in the analysis
 
+-- Grouping attic_sqft into a categorical variable to match Franklin
+alter table processed.building_info
+	add column attic_cat varchar(350);
+update processed.building_info
+	set attic_cat = case when sqft_flr1 is null then null
+						 when ((sqft_flr1 = 0) or (attic_sqft is null)) then 'NO ATTIC'
+						 when attic_sqft/sqft_flr1::double precision = 0  then 'NO ATTIC'
+						 when ((attic_sqft/sqft_flr1::double precision > 0) and (attic_sqft/sqft_flr1::double precision <= 0.9)) then 'PARTIAL ATTIC' 
+						 when attic_sqft/sqft_flr1::double precision > 0.9 then 'FULL ATTIC'
+						 else null end;
+
 -- Grouping appraisal area by collapsing subtypes
 alter table processed.historic_sales
 	add column area_description_grouped varchar(350);
