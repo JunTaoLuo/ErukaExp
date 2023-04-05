@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
+{% if schema == hamilton_schema %}
+
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ label_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
     value_no_year     double precision,
     year1             bigint,
@@ -46,22 +48,42 @@ CREATE TABLE IF NOT EXISTS {{ samples_label_table }} (
     insert_time         timestamp
 );
 
-CREATE TABLE IF NOT EXISTS {{ samples_download_time_table }} (
+{% endif %}
+
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ download_time_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
     download_time     timestamp
 );
 
-CREATE TABLE IF NOT EXISTS {{ samples_label_time_table }} (
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ label_time_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
     label_time        timestamp
 );
 
-CREATE TABLE IF NOT EXISTS {{ samples_error_table }} (
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ error_table }} (
     parcelid          text NOT NULL PRIMARY KEY,
     error             text
 );
 
-CREATE TABLE IF NOT EXISTS {{ samples_building_values_table }} (
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ building_values_table }} (
+    parcelid          text NOT NULL PRIMARY KEY,
+    building_value    double precision,
+    "year"            bigint,
+    handwritten       boolean
+);
+
+{% if schema == hamilton_schema %}
+
+CREATE TABLE IF NOT EXISTS {{ schema }}.{{ building_values_table }}_1930 (
+    parcelid          text NOT NULL PRIMARY KEY,
+    building_value    double precision,
+    "year"            bigint,
+    handwritten       boolean
+);
+
+{% endif %}
+
+CREATE TABLE IF NOT EXISTS samples.new_table (
     parcelid          text NOT NULL PRIMARY KEY,
     building_value    double precision,
     "year"            bigint,

@@ -13,7 +13,7 @@ import warnings
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-def read_labels(engine, keep, ocr_path):
+def read_labels(engine, keep, ocr_path, ocr_threshold):
     '''
     args:
         - engine: sql engine object, connecting to the database
@@ -67,7 +67,7 @@ def read_labels(engine, keep, ocr_path):
     ocr_labels = ocr_labels[~ocr_labels['prediction'].isna()]
 
     ## 3. Keep only cases where our prediction confidence is above the set threshold (see OCR modeling work for how we arrived at this)
-    ocr_labels = ocr_labels[ocr_labels['score'] >= -0.2772]
+    ocr_labels = ocr_labels[ocr_labels['score'] >= ocr_threshold]
 
     ## 4. Drop very large predicted values (to reduce noise, we also don't care much about these properties even if the prediction is right)
     ocr_labels = ocr_labels[ocr_labels['prediction'] <= 50000]
@@ -166,7 +166,7 @@ def read_features(engine):
     
     return feats, feats_sub, feats_franklin
 
-def read_data(engine, keep, ocr_path):
+def read_data(engine, keep, ocr_path, ocr_threshold):
     '''
     args:
         - engine: sql engine connecting to the database
@@ -178,7 +178,7 @@ def read_data(engine, keep, ocr_path):
         - pandas datarame of ocr labeled observations merged with feature data (if use_ocr is true)
     '''
 
-    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931 = read_labels(engine, keep, ocr_path)
+    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931 = read_labels(engine, keep, ocr_path, ocr_threshold)
     features, feats_sub, feats_franklin = read_features(engine)
 
     hand_merged = pd.merge(hand_labels, features, on='parcelid')
@@ -303,17 +303,17 @@ def gen_matrix(df, matrix_path, matrix_name):
     
     return df
 
-def main(engine, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
+def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
     '''
     Main function that stitches everything in this file together, to generate the
     train and test matrices written to file.
 
     Args are documented in their individual functions defined above.
     '''
-    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df = read_data(engine, keep, ocr_path)
+    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df = read_data(engine, keep, ocr_path, ocr_threshold=ocr_threshold)
     
     if keep=='all':
-        
+
         # If all observations kept, only make train-test split based on cases that are no year + not handwritten, so test
         # set only contains observations like that (our ground truth)
         hand_df_simple = hand_df[(hand_df['appraisal_target_year'] == 1933) & (hand_df['appraisal_handwritten_flag'] == 0)]        
@@ -328,7 +328,7 @@ def main(engine, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', 
         hand_df_yearhand = hand_df[~hand_df['parcelid'].isin(hand_df_simple['parcelid'])]
         y_train_yearhand = hand_df_yearhand['building_value']
         X_train_yearhand = hand_df_yearhand.drop(columns=['parcelid', 'building_value'])
-        
+
         X_train_hand = pd.concat([X_train_hand, X_train_yearhand])
         y_train_hand = pd.concat([y_train_hand, y_train_yearhand])
         

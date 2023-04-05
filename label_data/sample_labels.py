@@ -46,12 +46,12 @@ if __name__ == "__main__":
     export_url = ""
     file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
     for file in file_list:
-        if(file['title'] == constants.building_labels_prefix):
+        if(file['title'] == constants.building_values_prefix):
             export_url = file['exportLinks']['text/csv']
             break
 
     if not export_url:
-        print(f"Could not find file {constants.building_labels_prefix} in {args.gdrive} on GDrive")
+        print(f"Could not find file {constants.building_values_prefix} in {args.gdrive} on GDrive")
         exit(1)
 
     headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     samples.sort()
 
     # Check csv file for syntax
-    with open(results_file, "r") as f, open(constants.building_labels_file, "w") as fout:
+    with open(results_file, "r") as f, open(constants.building_values_file, "w") as fout:
         building_labels = csv.DictReader(f)
         index = 0
         fout.write(f"parcelid,building_value,year,handwritten\n")

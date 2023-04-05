@@ -18,7 +18,7 @@ The following packages/libraries must be installed
 2. Download the data for labeling by running the `download_samples.py`. This script obtains a number of entries, which can be specified via command line arguments, that have not yet been downloaded yet and attempts to retrive the Ownership Card from the county website. There is some light image processing to crop and rotate the image. This script will place the downloaded images in `data/` along with a label csv file that needs to be filled out.
    1. The script will upload the samples to GDrive for labeling.
    2. Open the `.csv` file in Google Sheets to create the sheets file.
-   3. The `building_labels.csv` file can then be deleted once the Google Sheets file is created.
+   3. The `building_values.csv` file can then be deleted once the Google Sheets file is created.
 3. Manual labeling by editing the label csv file.
    1. Updated instructions at https://docs.google.com/document/d/1bKtzUh36x76Rw_6mXfJIqxfIiV-P7mlG-fwAq7tAfJ0/edit?usp=sharing.
    2. Previous instructions:

@@ -42,22 +42,22 @@ if __name__ == "__main__":
         export_url = ""
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
         for file in file_list:
-            if(file['title'] == constants.building_labels_prefix):
+            if(file['title'] == constants.building_values_prefix):
                 export_url = file['exportLinks']['text/csv']
                 break
 
         if not export_url:
-            print(f"Could not find file {constants.building_labels_prefix} in {args.gdrive} on GDrive")
+            print(f"Could not find file {constants.building_values_prefix} in {args.gdrive} on GDrive")
             exit(1)
 
         headers = {'Authorization': 'Bearer ' + ga.credentials.access_token}
         res = requests.get(export_url, headers=headers)
-        open(constants.building_labels_file, "wb").write(res.content)
+        open(constants.building_values_file, "wb").write(res.content)
 
     num_labels = 0
 
     # Check csv file for syntax
-    with open(constants.building_labels_file, "r") as f:
+    with open(constants.building_values_file, "r") as f:
         building_labels = csv.DictReader(f)
 
         for line, row in enumerate(building_labels):
@@ -114,8 +114,8 @@ if __name__ == "__main__":
         print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
         sys.exit()
 
-    if not os.path.exists(constants.building_labels_file):
-        print(f'Results file: {constants.building_labels_file} not found')
+    if not os.path.exists(constants.building_values_file):
+        print(f'Results file: {constants.building_values_file} not found')
         sys.exit()
 
     eruka_db_str = os.environ['ERUKA_DB']
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     jinja_env = Environment(loader=FileSystemLoader(constants.template_dir))
     template = jinja_env.get_template("update_labels.sql.j2")
 
-    with db.connect() as conn, open(constants.building_labels_file, "r") as f:
+    with db.connect() as conn, open(constants.building_values_file, "r") as f:
         building_labels = csv.DictReader(f)
         print(f"Uploading {num_labels} labels")
 
