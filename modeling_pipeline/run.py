@@ -425,7 +425,17 @@ if __name__ == '__main__':
         print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
         print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
     
-    coments = args.comments
+    comments = args.comments
+    modeltype = args.modeltype
+    num_cv_splits = args.cvsplits
+    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
+    alpha = args.alpha
+    n = args.n
+    seed = args.seed
+    keep = args.keep
+    ocr_threshold = args.ocrthreshold
+
+
 
     # Run the experiment
     run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, 
