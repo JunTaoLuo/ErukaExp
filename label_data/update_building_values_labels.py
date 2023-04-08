@@ -122,7 +122,7 @@ if __name__ == "__main__":
             print(f"Uploading label {i}")
             params = dict(constants.db_params)
             params["building_values_table"] = args.file
-            params["schema"] = args.schema
+            params["schema"] = constants.db_params["hamilton_schema"] if args.schema == "hamilton" else constants.db_params["franklin_schema"]
             params["parcelid"] = row["parcelid"]
             building_value = row["building_value"].lower()
             year = row["year"]

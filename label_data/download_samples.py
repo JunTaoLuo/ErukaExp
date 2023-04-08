@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
     params = dict(constants.db_params)
     params["entries"] = args.entries
-    params["schema"] = args.schema
+    params["schema"] = constants.db_params["hamilton_schema"] if args.schema == "hamilton" else constants.db_params["franklin_schema"]
 
     query = template.render(params)
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
             if status != "Success":
                 params = dict(constants.db_params)
-                params["schema"] = args.schema
+                params["schema"] = constants.db_params["hamilton_schema"] if args.schema == "hamilton" else constants.db_params["franklin_schema"]
                 params["parcelid"] = parcelid
                 params["error"] = status
                 query = template.render(params)
