@@ -48,7 +48,7 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
 
     franklin_labels_1931 = pd.read_sql('''select parcelid, building_value
                                           from franklin.building_values_1930
-                                          where year = 31 and building_value is not null''', engine)
+                                          where building_value is not null''', engine)
     
     print(f"Read labels: there are {len(franklin_labels_1920)} Franklin test observations from 1920")
     print(f"Read labels: there are {len(franklin_labels_1931)} Franklin test observations from 1931")
