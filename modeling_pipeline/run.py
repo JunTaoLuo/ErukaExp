@@ -219,6 +219,25 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     within_10_perc_error = 100*(np.mean(test_perc_error <= 10))
     within_20_perc_error =100*(np.mean(test_perc_error <= 20))
     
+    # Subset 
+    perc_5 = 1140
+    perc_95 = 6715
+    
+    test_subset = y_test[(y_test >= perc_5)&(y_test <= perc_95)]
+    pred_subset = y_pred[(y_test >= perc_5)&(y_test <= perc_95)]
+    
+    print(f"Length of Hamilton full test set: {len(y_test)}")
+    print(f"Length of Hamilton 5-95 perc test subset: {len(test_subset)}")
+    
+    test_rmse_5to95 = mean_squared_error(test_subset, pred_subset)
+    
+    # Error distance stats on subset
+    test_perc_error_sub = get_perc_error(pred_subset, test_subset)
+    median_perc_error_sub = np.percentile(test_perc_error_sub, 50)
+    within_5_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 5))
+    within_10_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 10))
+    within_20_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 20))
+    
     # Error on subsets
     test_rmse_25perc_lowest = mean_squared_error(y_test[y_test <= 2250], y_pred[y_test <= 2250], squared=False)
     test_rmse_50perc_lowest = mean_squared_error(y_test[y_test <= 3085], y_pred[y_test <= 3085], squared=False)
@@ -231,11 +250,28 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     franklin_1920_rmse = 0
     franklin_1931_rmse = 0
     
+
+    
     if franklin is True:
         y_pred_franklin_1920 = predict(model, X_franklin_1920)
         y_pred_franklin_1931 = predict(model, X_franklin_1931)
+        
         franklin_1920_rmse = mean_squared_error(y_franklin_1920, y_pred_franklin_1920, squared=False)
         franklin_1931_rmse = mean_squared_error(y_franklin_1931, y_pred_franklin_1931, squared=False)
+        
+        # Subset stats for 1931
+        f31_sub = y_franklin_1931[(y_franklin_1931 >= perc_5)&(y_franklin_1931 <= perc_95)]
+        f31_pred_sub = y_pred_franklin_1931[(y_franklin_1931 >= perc_5)&(y_franklin_1931 <= perc_95)]
+        
+        print(f"Length of Franklin full test set: {len(y_franklin_1931)}")
+        print(f"Length of Franklin 5-95 perc test subset: {len(f31_sub)}")
+        
+        # Error distance stats on subset
+        f31_perc_error_sub = get_perc_error(f31_pred_sub, f31_sub)
+        f31_median_perc_error_sub = np.percentile(f31_perc_error_sub, 50)
+        f31_within_5_perc_error_sub = 100*(np.mean(f31_perc_error_sub <= 5))
+        f31_within_10_perc_error_sub = 100*(np.mean(f31_perc_error_sub <= 10))
+        f31_within_20_perc_error_sub = 100*(np.mean(f31_perc_error_sub <= 20))
 
     # Plots to log
 
@@ -273,7 +309,16 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
             'true_pred_plot_train': wandb.Image(true_pred_plot_train),
             'franklin_1920_rmse': franklin_1920_rmse,
-            'franklin_1931_rmse': franklin_1931_rmse
+            'franklin_1931_rmse': franklin_1931_rmse,
+            'test_rmse_5to95': test_rmse_5to95,
+            'median_perc_error_sub': median_perc_error_sub,
+            'within_5_perc_error_sub': within_5_perc_error_sub,
+            'within_10_perc_error_sub': within_10_perc_error_sub, 
+            'within_20_perc_error_sub': within_20_perc_error_sub,
+            'f31_median_perc_error_sub': f31_median_perc_error_sub,
+            'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
+            'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub, 
+            'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,            
             })
 
     wandb.finish()
