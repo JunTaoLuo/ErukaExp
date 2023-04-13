@@ -7,11 +7,14 @@ Notes: for now, I log using print statements to command line because the pipelin
 is very simple and local. If it gets more compliated, will start persisting and printing
 to a log file.
 '''
+import os
+import sys
 import pandas as pd
 import numpy as np
 import warnings
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sqlalchemy import create_engine
 
 def read_labels(engine, keep, ocr_path, ocr_threshold):
     '''
@@ -109,7 +112,14 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
     franklin_labels_1920['is_ocr'] = 0
     franklin_labels_1931['is_ocr'] = 0
 
-    return hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels
+    sql = '''SELECT parcelid
+                FROM samples.download_errors'''
+
+    download_errors = pd.read_sql(sql, engine)
+
+    print(f"Read samples: there are {len(download_errors)} download errors")
+
+    return hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels, download_errors
 
 def read_features(engine):
     '''
@@ -195,7 +205,7 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
         - pandas datarame of ocr labeled observations merged with feature data (if use_ocr is true)
     '''
 
-    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels = read_labels(engine, keep, ocr_path, ocr_threshold)
+    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels, download_errors = read_labels(engine, keep, ocr_path, ocr_threshold)
     features, feats_sub, feats_franklin = read_features(engine)
 
     hand_merged = pd.merge(hand_labels, features, on='parcelid')
@@ -204,7 +214,6 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
     hand_merged_sub = pd.merge(hand_labels, feats_sub, on='parcelid')
     franklin_1920_merged = pd.merge(franklin_labels_1920, feats_franklin, on='parcelid')
     franklin_1931_merged = pd.merge(franklin_labels_1931, feats_franklin, on='parcelid')
-
 
     if len(hand_labels) != len(hand_merged):
         warnings.warn(f"There are {len(hand_labels) - len(hand_merged)} handlabeled parcels getting dropped when merging to feature data.")
@@ -233,7 +242,11 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
 
     print(f"Merged OCR labels and features. The data shape is {ocr_merged.shape}")
 
-    return hand_merged, ocr_merged, hand_merged_sub, ocr_merged_sub, franklin_1920_merged, franklin_1931_merged, segmentation_error_merged
+    download_errors_merged = pd.merge(download_errors, feats_sub, on='parcelid')
+
+    print(f"Merged download errors and features. The data shape is {download_errors_merged.shape}")
+
+    return hand_merged, ocr_merged, hand_merged_sub, ocr_merged_sub, franklin_1920_merged, franklin_1931_merged, segmentation_error_merged, download_errors_merged
 
 def extract_xy(df):
     y = df['building_value']
@@ -332,14 +345,14 @@ def gen_matrix(df, matrix_path, matrix_name):
 
     return df
 
-def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
+def main(engine, ocr_threshold=-9999, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
     '''
     Main function that stitches everything in this file together, to generate the
     train and test matrices written to file.
 
     Args are documented in their individual functions defined above.
     '''
-    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df, segmentation_error_df = read_data(engine, keep, ocr_path, ocr_threshold=ocr_threshold)
+    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df, segmentation_error_df, download_errors_df = read_data(engine, keep, ocr_path, ocr_threshold=ocr_threshold)
 
     if keep=='all':
 
@@ -406,6 +419,12 @@ def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k
 
     X_test_segmentation_error, _ = process_features(X_test_segmentation_error)
 
+    hand_sample = hand_df_sub.drop(columns=['parcelid', 'building_value', 'is_ocr'])
+    hand_sample, hand_sample_cols = process_features(hand_sample)
+
+    download_errors_sample = download_errors_df.drop(columns=['parcelid'])
+    download_errors_sample, download_sample_cols = process_features(download_errors_sample)
+
     mapping = {
         'X_train_hand': X_train_hand,
         'X_train_ocr': X_train_ocr,
@@ -422,6 +441,8 @@ def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k
         'y_franklin_1931': y_franklin_1931,
         'X_test_segmentation_error': X_test_segmentation_error,
         'y_test_segmentation_error': y_test_segmentation_error,
+        'hand_sample': hand_sample,
+        'download_errors_sample': download_errors_sample,
     }
 
     for i in mapping:
@@ -438,7 +459,20 @@ def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k
 
     return X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, X_test_segmentation_error, y_test_segmentation_error, colnames, colnames_sub
 
+if __name__ == '__main__':
 
+    # Set DB connection from environment
+    if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
+        print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
+        sys.exit()
+
+    db_uri = os.environ['ERUKA_DB']
+    db_engine = create_engine(db_uri)
+
+    main(db_engine,
+        ocr_path="/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/carb-oc-fine-tuning-10k-empty-raw-predictions.csv",
+        random_state=12345,
+        matrix_path='matrices')
 
 # def gen_matrices(X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames, matrix_path='matrices'):
 #     '''
