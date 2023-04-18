@@ -250,7 +250,10 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     franklin_1920_rmse = 0
     franklin_1931_rmse = 0
     
-
+    f31_median_perc_error_sub = 0
+    f31_within_5_perc_error_sub = 0
+    f31_within_10_perc_error_sub = 0
+    f31_within_20_perc_error_sub = 0
     
     if franklin is True:
         y_pred_franklin_1920 = predict(model, X_franklin_1920)

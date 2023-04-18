@@ -18,14 +18,14 @@ parameters:
   max_features:
     values: ['sqrt']
 command:
-  - python
+  - C:/Users/mihir/gitclones/ErukaExp/eruka/Scripts/python.exe
   - ${program}
   - 'random_forest'
   - --trainsource=both
   - --shuffle
   - --comments=sweep_oc-carb-fine-tuning-10k-full
   - --seed=2839
-  - --ocrsource=/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/carb-oc-fine-tuning-10k-empty-raw-predictions.csv
+  - --ocrsource=C:/Users/mihir/gitclones/ErukaExp/modeling_pipeline/carb-oc-fine-tuning-10k-empty-raw-predictions.csv
   - --skiplargen
   - -regen
   - ${args}
