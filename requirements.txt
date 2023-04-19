@@ -16,3 +16,5 @@ seaborn
 matplotlib
 wandb
 openpyxl
+tensorflow>=2.0
+adapt
