@@ -135,8 +135,8 @@ def plot_true_pred(y_pred, y_true):
     return ax
 
 
-def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, 
-                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931, 
+def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
+                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
                    colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha, ocr_threshold, comments=''):
@@ -201,7 +201,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
 
     # Metrics to log
-    
+
     # Standard regression stats
     cv_rmse = np.mean(np.sqrt(np.abs(cross_val_mses)))
     cv_r2 = np.mean(cross_val_r2)
@@ -218,26 +218,26 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     within_5_perc_error = 100*(np.mean(test_perc_error <= 5))
     within_10_perc_error = 100*(np.mean(test_perc_error <= 10))
     within_20_perc_error =100*(np.mean(test_perc_error <= 20))
-    
-    # Subset 
+
+    # Subset
     perc_5 = 1140
     perc_95 = 6715
-    
+
     test_subset = y_test[(y_test >= perc_5)&(y_test <= perc_95)]
     pred_subset = y_pred[(y_test >= perc_5)&(y_test <= perc_95)]
-    
+
     print(f"Length of Hamilton full test set: {len(y_test)}")
     print(f"Length of Hamilton 5-95 perc test subset: {len(test_subset)}")
-    
+
     test_rmse_5to95 = mean_squared_error(test_subset, pred_subset, squared=False)
-    
+
     # Error distance stats on subset
     test_perc_error_sub = get_perc_error(pred_subset, test_subset)
     median_perc_error_sub = np.percentile(test_perc_error_sub, 50)
     within_5_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 5))
     within_10_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 10))
     within_20_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 20))
-    
+
     # Error on subsets
     test_rmse_25perc_lowest = mean_squared_error(y_test[y_test <= 2250], y_pred[y_test <= 2250], squared=False)
     test_rmse_50perc_lowest = mean_squared_error(y_test[y_test <= 3085], y_pred[y_test <= 3085], squared=False)
@@ -245,30 +245,30 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     test_rmse_85perc_lowest = mean_squared_error(y_test[y_test <= 4850], y_pred[y_test <= 4850], squared=False)
     test_rmse_90perc_lowest = mean_squared_error(y_test[y_test <= 5489], y_pred[y_test <= 5489], squared=False)
     test_rmse_95perc_lowest = mean_squared_error(y_test[y_test <= 6714], y_pred[y_test <= 6714], squared=False)
-    
+
     # Franklin performance, if generalized model selected
     franklin_1920_rmse = 0
     franklin_1931_rmse = 0
-    
+
     f31_median_perc_error_sub = 0
     f31_within_5_perc_error_sub = 0
     f31_within_10_perc_error_sub = 0
     f31_within_20_perc_error_sub = 0
-    
+
     if franklin is True:
         y_pred_franklin_1920 = predict(model, X_franklin_1920)
         y_pred_franklin_1931 = predict(model, X_franklin_1931)
-        
+
         franklin_1920_rmse = mean_squared_error(y_franklin_1920, y_pred_franklin_1920, squared=False)
         franklin_1931_rmse = mean_squared_error(y_franklin_1931, y_pred_franklin_1931, squared=False)
-        
+
         # Subset stats for 1931
         f31_sub = y_franklin_1931[(y_franklin_1931 >= perc_5)&(y_franklin_1931 <= perc_95)]
         f31_pred_sub = y_pred_franklin_1931[(y_franklin_1931 >= perc_5)&(y_franklin_1931 <= perc_95)]
-        
+
         print(f"Length of Franklin full test set: {len(y_franklin_1931)}")
         print(f"Length of Franklin 5-95 perc test subset: {len(f31_sub)}")
-        
+
         # Error distance stats on subset
         f31_perc_error_sub = get_perc_error(f31_pred_sub, f31_sub)
         f31_median_perc_error_sub = np.percentile(f31_perc_error_sub, 50)
@@ -281,7 +281,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # Plot true vs predicted value
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
     true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
-    
+
 
     # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
 
@@ -291,38 +291,68 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # Log feature importance if the method allows for it
     wandb.sklearn.plot_feature_importances(model)
 
-    wandb.log({'test_rmse': test_rmse,
-            'test_r2': test_r2,
-            'train_rmse': train_rmse,
-            'train_r2': train_r2,
-            'cv_rmse': cv_rmse,
-            'cv_r2': cv_r2,
-            'train_mae': train_mae,
-            'test_mae': test_mae,
-            'median_test_error_perc': median_perc_error,
-            'within_5perc_testerror': within_5_perc_error,
-            'within_10perc_testerror': within_10_perc_error,
-            'within_20perc_testerror': within_20_perc_error,
-            'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
-            'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
-            'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
-            'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
-            'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
-            'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
-            'true_pred_plot_test': wandb.Image(true_pred_plot_test),
-            'true_pred_plot_train': wandb.Image(true_pred_plot_train),
-            'franklin_1920_rmse': franklin_1920_rmse,
-            'franklin_1931_rmse': franklin_1931_rmse,
-            'test_rmse_5to95': test_rmse_5to95,
-            'median_perc_error_sub': median_perc_error_sub,
-            'within_5_perc_error_sub': within_5_perc_error_sub,
-            'within_10_perc_error_sub': within_10_perc_error_sub, 
-            'within_20_perc_error_sub': within_20_perc_error_sub,
-            'f31_median_perc_error_sub': f31_median_perc_error_sub,
-            'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
-            'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub, 
-            'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,            
-            })
+    if franklin is True:
+        wandb.log({'test_rmse': test_rmse,
+                'test_r2': test_r2,
+                'train_rmse': train_rmse,
+                'train_r2': train_r2,
+                'cv_rmse': cv_rmse,
+                'cv_r2': cv_r2,
+                'train_mae': train_mae,
+                'test_mae': test_mae,
+                'median_test_error_perc': median_perc_error,
+                'within_5perc_testerror': within_5_perc_error,
+                'within_10perc_testerror': within_10_perc_error,
+                'within_20perc_testerror': within_20_perc_error,
+                'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
+                'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
+                'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
+                'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
+                'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
+                'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
+                'true_pred_plot_test': wandb.Image(true_pred_plot_test),
+                'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+                'franklin_1920_rmse': franklin_1920_rmse,
+                'franklin_1931_rmse': franklin_1931_rmse,
+                'test_rmse_5to95': test_rmse_5to95,
+                'median_perc_error_sub': median_perc_error_sub,
+                'within_5_perc_error_sub': within_5_perc_error_sub,
+                'within_10_perc_error_sub': within_10_perc_error_sub,
+                'within_20_perc_error_sub': within_20_perc_error_sub,
+                'f31_median_perc_error_sub': f31_median_perc_error_sub,
+                'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
+                'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub,
+                'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,
+                })
+    else:
+        wandb.log({'test_rmse': test_rmse,
+                'test_r2': test_r2,
+                'train_rmse': train_rmse,
+                'train_r2': train_r2,
+                'cv_rmse': cv_rmse,
+                'cv_r2': cv_r2,
+                'train_mae': train_mae,
+                'test_mae': test_mae,
+                'median_test_error_perc': median_perc_error,
+                'within_5perc_testerror': within_5_perc_error,
+                'within_10perc_testerror': within_10_perc_error,
+                'within_20perc_testerror': within_20_perc_error,
+                'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
+                'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
+                'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
+                'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
+                'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
+                'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
+                'true_pred_plot_test': wandb.Image(true_pred_plot_test),
+                'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+                'franklin_1920_rmse': franklin_1920_rmse,
+                'franklin_1931_rmse': franklin_1931_rmse,
+                'test_rmse_5to95': test_rmse_5to95,
+                'median_perc_error_sub': median_perc_error_sub,
+                'within_5_perc_error_sub': within_5_perc_error_sub,
+                'within_10_perc_error_sub': within_10_perc_error_sub,
+                'within_20_perc_error_sub': within_20_perc_error_sub,
+                })
 
     wandb.finish()
 
@@ -339,11 +369,12 @@ if __name__ == '__main__':
     parser.add_argument('--cvsplits', type=int, action='store', default=4, required=False, help="number of splits for cross-validation metrics")
     parser.add_argument('--testprop', type=float, action='store', default=0.2, required=False, help="proportion of data to hold out for test")
     parser.add_argument('--trainsource', action='store', choices=['ocr', 'hand', 'both'], default='hand', required=False, help="whether to use hand-labeled data, ocr data, or both for training")
+    parser.add_argument('--testsource', action='store', choices=['train', 'segmentation_errors'], default='train', required=False, help="whether to use trainsource partition or another source for testing")
     parser.add_argument('--keep', action='store', choices=['simple', 'all'], default='simple', required=False, help='''whether to use all hand-labeled data including handwritten/year, with appropriate flags as features,
                                                                                                                     or just the simple hand-labeled cases where year is null and handwritten is null''')
 
     # OCR related parameters
-    parser.add_argument('--ocrthreshold', type=float, action='store', required=False, help="OCR Threshold")
+    parser.add_argument('--ocrthreshold', type=float, action='store', default=-9999, required=False, help="OCR Threshold")
     parser.add_argument('--ocrsource', action='store', required=False, help="Path to the ocr results")
     parser.add_argument('--skiplargen', action='store_true', required=False, help="Skip run when n > number of training samples")
 
@@ -398,6 +429,8 @@ if __name__ == '__main__':
         X_franklin_1931 = np.genfromtxt('matrices/X_franklin_1931.txt')
         y_franklin_1920 = np.genfromtxt('matrices/y_franklin_1920.txt')
         y_franklin_1931 = np.genfromtxt('matrices/y_franklin_1931.txt')
+        X_test_segmentation_error = np.genfromtxt('matrices/X_test_segmentation_error.txt')
+        y_test_segmentation_error = np.genfromtxt('matrices/y_test_segmentation_error.txt')
 
         # Reading column names into colnames
         with open('matrices/colnames.txt', 'r') as file:
@@ -407,8 +440,8 @@ if __name__ == '__main__':
 
     else:
         testprop = args.testprop # proportion of observations to keep in test set
-        X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, colnames, colnames_sub = utils.main(db_engine, 
-                                                                                                    ocr_threshold=args.ocrthreshold,                                                                                                                                 
+        X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, X_test_segmentation_error, y_test_segmentation_error, colnames, colnames_sub = utils.main(db_engine,
+                                                                                                    ocr_threshold=args.ocrthreshold,
                                                                                                     keep=keep,
                                                                                                     ocr_path=args.ocrsource,
                                                                                                     test_size=testprop,
@@ -443,6 +476,7 @@ if __name__ == '__main__':
 
     # Shuffle data if desired
     if args.shuffle:
+        print(f"X length: {len(X_train)}, y length: {len(y_train)}")
         X_train, y_train = shuffle_data(X_train, y_train, seed=5555)
 
     # Subset to max number of training observations
@@ -472,7 +506,7 @@ if __name__ == '__main__':
         # Print some important outputs as sanity check
         print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
         print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
-    
+
     comments = args.comments
     modeltype = args.modeltype
     num_cv_splits = args.cvsplits
@@ -483,11 +517,14 @@ if __name__ == '__main__':
     keep = args.keep
     ocr_threshold = args.ocrthreshold
 
-
+    if args.testsource == "segmentation_errors":
+        X_test = X_test_segmentation_error
+        y_test = y_test_segmentation_error
+        print(f"Using segmentation error labels as test set X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
     # Run the experiment
-    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test, 
-                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931, 
+    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
+                   franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
                    colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha, ocr_threshold, comments)

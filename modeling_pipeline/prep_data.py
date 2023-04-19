@@ -7,11 +7,14 @@ Notes: for now, I log using print statements to command line because the pipelin
 is very simple and local. If it gets more compliated, will start persisting and printing
 to a log file.
 '''
+import os
+import sys
 import pandas as pd
 import numpy as np
 import warnings
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sqlalchemy import create_engine
 
 def read_labels(engine, keep, ocr_path, ocr_threshold):
     '''
@@ -49,9 +52,25 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
     franklin_labels_1931 = pd.read_sql('''select parcelid, building_value
                                           from franklin.building_values_1930
                                           where building_value is not null''', engine)
-    
+
     print(f"Read labels: there are {len(franklin_labels_1920)} Franklin test observations from 1920")
     print(f"Read labels: there are {len(franklin_labels_1931)} Franklin test observations from 1931")
+
+    if keep == 'all':
+        sql = '''SELECT parcelid, building_value,
+                        COALESCE(year, 1933) as "appraisal_target_year",
+                        case when year is null then 0 else 1 end as "appraisal_target_year_flag",
+                        case when handwritten is True then 1 else 0 end as "appraisal_handwritten_flag"
+                 FROM samples.segmentation_error_values WHERE building_value is not null
+              '''
+
+    if keep == 'simple':
+        sql = '''SELECT parcelid, building_value
+                 FROM samples.segmentation_error_values
+                 WHERE year is null and handwritten is null and building_value is not null'''
+
+    segmentation_error_labels = pd.read_sql(sql, engine)
+    print(f"Read labels: there are {len(segmentation_error_labels)} hand-labeled observations for segmentation errors")
 
     ocr_labels = pd.read_csv(ocr_path)
     print(f"Read labels: there are {len(ocr_labels)} OCR-labeled observations")
@@ -88,11 +107,19 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
     # will ignore this var because it is the same for all data points, but combined models may use this to weight hand-labeled data more
     ocr_labels['is_ocr'] = 1
     hand_labels['is_ocr'] = 0
-    
+    segmentation_error_labels['is_ocr'] = 0
+
     franklin_labels_1920['is_ocr'] = 0
     franklin_labels_1931['is_ocr'] = 0
 
-    return hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931
+    sql = '''SELECT parcelid
+                FROM samples.download_errors'''
+
+    download_errors = pd.read_sql(sql, engine)
+
+    print(f"Read samples: there are {len(download_errors)} download errors")
+
+    return hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels, download_errors
 
 def read_features(engine):
     '''
@@ -140,30 +167,30 @@ def read_features(engine):
 
     # Subset features to be used for franklin generalizations
     feats_sub = pd.read_sql(sql, engine)
-    
+
     common_feats = ['parcelid', 'attic_cat', 'live_sqft', 'sqft_flr1', 'story_ht', 'year_built',
                    'prop_class_code', 'number_of_parcels', 'grade_numeric', 'exterior_wall_type', 'basement_grouped',
                    'heating', 'air_conditioning', 'total_rooms', 'full_bath', 'half_bath', 'fireplaces', 'garage_capacity']
 
     feats_sub = feats_sub[common_feats]
-    
+
     feats_sub = pd.get_dummies(feats_sub, columns=['attic_cat', 'prop_class_code',
                                          'exterior_wall_type', 'heating', 'air_conditioning', 'basement_grouped'], dummy_na = True)
-    
+
     feats_franklin = pd.read_sql('SELECT * FROM processed.franklin_features', engine)
-    
+
     feats_franklin = feats_franklin[common_feats]
-    
+
     feats_franklin = pd.get_dummies(feats_franklin, columns=['attic_cat', 'prop_class_code',
                                          'exterior_wall_type', 'heating', 'air_conditioning', 'basement_grouped'], dummy_na = True)
-    
-    # Because creating dummy variables might result in different numbers of columns, aligning the X data frames 
-    
+
+    # Because creating dummy variables might result in different numbers of columns, aligning the X data frames
+
     # Keep only columns that exist across both data frames
     common_cols = feats_franklin.columns.intersection(feats_sub.columns)
     feats_franklin = feats_franklin.loc[:, common_cols]
     feats_sub = feats_sub.loc[:, common_cols]
-    
+
     return feats, feats_sub, feats_franklin
 
 def read_data(engine, keep, ocr_path, ocr_threshold):
@@ -178,15 +205,15 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
         - pandas datarame of ocr labeled observations merged with feature data (if use_ocr is true)
     '''
 
-    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931 = read_labels(engine, keep, ocr_path, ocr_threshold)
+    hand_labels, ocr_labels, franklin_labels_1920, franklin_labels_1931, segmentation_error_labels, download_errors = read_labels(engine, keep, ocr_path, ocr_threshold)
     features, feats_sub, feats_franklin = read_features(engine)
 
     hand_merged = pd.merge(hand_labels, features, on='parcelid')
-    
+    segmentation_error_merged = pd.merge(segmentation_error_labels, features, on='parcelid')
+
     hand_merged_sub = pd.merge(hand_labels, feats_sub, on='parcelid')
     franklin_1920_merged = pd.merge(franklin_labels_1920, feats_franklin, on='parcelid')
     franklin_1931_merged = pd.merge(franklin_labels_1931, feats_franklin, on='parcelid')
-    
 
     if len(hand_labels) != len(hand_merged):
         warnings.warn(f"There are {len(hand_labels) - len(hand_merged)} handlabeled parcels getting dropped when merging to feature data.")
@@ -195,6 +222,14 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
         warnings.warn(f"There is missing feature data for handlabeled parcels where there shouldn't be.")
 
     print(f"Merged hand labels and features. The data shape is {hand_merged.shape}")
+
+    if len(segmentation_error_labels) != len(segmentation_error_merged):
+        warnings.warn(f"There are {len(segmentation_error_labels) - len(segmentation_error_merged)} segmentation_error_labeled parcels getting dropped when merging to feature data.")
+
+    if segmentation_error_merged['year_built'].isna().sum() > 0:
+        warnings.warn(f"There is missing feature data for handlabeled parcels where there shouldn't be.")
+
+    print(f"Merged segmentation error labels and features. The data shape is {segmentation_error_merged.shape}")
 
     ocr_merged = pd.merge(ocr_labels, features, on='parcelid')
     ocr_merged_sub = pd.merge(ocr_labels, feats_sub, on='parcelid')
@@ -207,7 +242,16 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
 
     print(f"Merged OCR labels and features. The data shape is {ocr_merged.shape}")
 
-    return hand_merged, ocr_merged, hand_merged_sub, ocr_merged_sub, franklin_1920_merged, franklin_1931_merged
+    download_errors_merged = pd.merge(download_errors, feats_sub, on='parcelid')
+
+    print(f"Merged download errors and features. The data shape is {download_errors_merged.shape}")
+
+    return hand_merged, ocr_merged, hand_merged_sub, ocr_merged_sub, franklin_1920_merged, franklin_1931_merged, segmentation_error_merged, download_errors_merged
+
+def extract_xy(df):
+    y = df['building_value']
+    X = df.drop(columns=['parcelid', 'building_value'])
+    return X, y
 
 def split_data(df, test_size = 0.2, random_state = 4):
     '''
@@ -219,9 +263,7 @@ def split_data(df, test_size = 0.2, random_state = 4):
         - X_train, X_test, y_train, y_test: pandas dfs of training and test features and labels
     '''
 
-    y = df['building_value']
-
-    X = df.drop(columns=['parcelid', 'building_value'])
+    X, y = extract_xy(df)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = random_state)
 
@@ -243,13 +285,13 @@ def impute_features(X_df):
 
     # Imputing number of parcels by modal value (1 parcel)
     X_df['number_of_parcels'] = X_df['number_of_parcels'].fillna(1)
-    
+
     # Impute building height by modal value (2 floors)
     X_df['story_ht'] = X_df['story_ht'].fillna(2)
 
     # Impute total rooms by modal value (6 floors)
     X_df['total_rooms'] = X_df['total_rooms'].fillna(6)
-    
+
     # Impute with logical value if missing (0)
     X_df['full_bath'] = X_df['full_bath'].fillna(0)
     X_df['half_bath'] = X_df['half_bath'].fillna(0)
@@ -296,31 +338,31 @@ def process_features(X_df):
 def gen_matrix(df, matrix_path, matrix_name):
     if not isinstance(df, np.ndarray):
         df = df.to_numpy()
-        
+
     np.savetxt(f"{matrix_path}/{matrix_name}.txt", df)
 
     print(f"{matrix_name} saved to file")
-    
+
     return df
 
-def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
+def main(engine, ocr_threshold=-9999, keep='simple', ocr_path='oc-carb-fine-tuning-10k_results.csv', test_size=0.2, random_state=4, matrix_path='matrices'):
     '''
     Main function that stitches everything in this file together, to generate the
     train and test matrices written to file.
 
     Args are documented in their individual functions defined above.
     '''
-    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df = read_data(engine, keep, ocr_path, ocr_threshold=ocr_threshold)
-    
+    hand_df, ocr_df, hand_df_sub, ocr_df_sub, franklin_1920_df, franklin_1931_df, segmentation_error_df, download_errors_df = read_data(engine, keep, ocr_path, ocr_threshold=ocr_threshold)
+
     if keep=='all':
 
         # If all observations kept, only make train-test split based on cases that are no year + not handwritten, so test
         # set only contains observations like that (our ground truth)
-        hand_df_simple = hand_df[(hand_df['appraisal_target_year'] == 1933) & (hand_df['appraisal_handwritten_flag'] == 0)]        
-        
+        hand_df_simple = hand_df[(hand_df['appraisal_target_year'] == 1933) & (hand_df['appraisal_handwritten_flag'] == 0)]
+
         X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df_simple, test_size, random_state)
-        
-        hand_df_simple_sub = hand_df_sub[(hand_df_sub['appraisal_target_year'] == 1933) & (hand_df_sub['appraisal_handwritten_flag'] == 0)]        
+
+        hand_df_simple_sub = hand_df_sub[(hand_df_sub['appraisal_target_year'] == 1933) & (hand_df_sub['appraisal_handwritten_flag'] == 0)]
 
         X_train_hand_sub, X_test_sub, y_train_hand_sub, y_test_sub = split_data(hand_df_simple_sub, test_size, random_state)
 
@@ -331,45 +373,58 @@ def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k
 
         X_train_hand = pd.concat([X_train_hand, X_train_yearhand])
         y_train_hand = pd.concat([y_train_hand, y_train_yearhand])
-        
+
         hand_df_yearhand_sub = hand_df_sub[~hand_df_sub['parcelid'].isin(hand_df_simple_sub['parcelid'])]
         X_train_yearhand_sub = hand_df_yearhand_sub.drop(columns=['parcelid', 'building_value'])
-        
+
         X_train_hand_sub = pd.concat([X_train_hand_sub, X_train_yearhand_sub])
-        
+
         assert y_train_hand_sub.equals(y_train_hand)
         assert y_test_sub.equals(y_test)
-        
+
+        segmentation_error_df_simple = segmentation_error_df[(segmentation_error_df['appraisal_target_year'] == 1933) & (segmentation_error_df['appraisal_handwritten_flag'] == 0)]
+        X_test_segmentation_error, y_test_segmentation_error = extract_xy(segmentation_error_df_simple)
+
     else:
         # Else, since all handlabeled data has no year/is not handwritten, can use train-test split directly
         X_train_hand, X_test, y_train_hand, y_test = split_data(hand_df, test_size, random_state)
-        
+
         X_train_hand_sub, X_test_sub, y_train_hand_sub, y_test_sub = split_data(hand_df_sub, test_size, random_state)
-        
+
+        X_test_segmentation_error, y_test_segmentation_error = extract_xy(segmentation_error_df)
+
         assert y_train_hand_sub.equals(y_train_hand)
         assert y_test_sub.equals(y_test)
-        
+
     X_train_hand, colnames = process_features(X_train_hand)
     X_test, colnames = process_features(X_test)
-    
+
     X_train_hand_sub, colnames_sub = process_features(X_train_hand_sub)
     X_test_sub, colnames_sub = process_features(X_test_sub)
 
     X_train_ocr = ocr_df.drop(columns=['parcelid', 'building_value'])
     y_train_ocr = ocr_df['building_value']
     X_train_ocr, colnames = process_features(X_train_ocr)
-    
+
     X_train_ocr_sub = ocr_df_sub.drop(columns=['parcelid', 'building_value'])
     X_train_ocr_sub, colnames_sub = process_features(X_train_ocr_sub)
-    
-    X_franklin_1920 = franklin_1920_df.drop(columns=['parcelid', 'building_value']) 
+
+    X_franklin_1920 = franklin_1920_df.drop(columns=['parcelid', 'building_value'])
     X_franklin_1920, colnames_sub = process_features(X_franklin_1920)
-    X_franklin_1931 = franklin_1931_df.drop(columns=['parcelid', 'building_value']) 
-    X_franklin_1931, colnames_sub = process_features(X_franklin_1931)   
-    
+    X_franklin_1931 = franklin_1931_df.drop(columns=['parcelid', 'building_value'])
+    X_franklin_1931, colnames_sub = process_features(X_franklin_1931)
+
     y_franklin_1920 = franklin_1920_df['building_value']
     y_franklin_1931 = franklin_1931_df['building_value']
-         
+
+    X_test_segmentation_error, _ = process_features(X_test_segmentation_error)
+
+    hand_sample = hand_df_sub.drop(columns=['parcelid', 'building_value', 'is_ocr'])
+    hand_sample, hand_sample_cols = process_features(hand_sample)
+
+    download_errors_sample = download_errors_df.drop(columns=['parcelid'])
+    download_errors_sample, download_sample_cols = process_features(download_errors_sample)
+
     mapping = {
         'X_train_hand': X_train_hand,
         'X_train_ocr': X_train_ocr,
@@ -383,24 +438,41 @@ def main(engine, ocr_threshold, keep='simple', ocr_path='oc-carb-fine-tuning-10k
         'X_franklin_1920': X_franklin_1920,
         'X_franklin_1931': X_franklin_1931,
         'y_franklin_1920': y_franklin_1920,
-        'y_franklin_1931': y_franklin_1931
+        'y_franklin_1931': y_franklin_1931,
+        'X_test_segmentation_error': X_test_segmentation_error,
+        'y_test_segmentation_error': y_test_segmentation_error,
+        'hand_sample': hand_sample,
+        'download_errors_sample': download_errors_sample,
     }
-    
+
     for i in mapping:
         gen_matrix(mapping[i], matrix_path, i)
-    
+
     # Export colnames
     with open(f"{matrix_path}/colnames.txt", 'w') as file:
         file.write('\n'.join(colnames))
-        
+
     with open(f"{matrix_path}/colnames_sub.txt", 'w') as file:
         file.write('\n'.join(colnames_sub))
 
     print("Column names saved to file")
 
-    return X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, colnames, colnames_sub
+    return X_train_hand, X_train_ocr, X_test, X_train_hand_sub, X_train_ocr_sub, X_test_sub, y_train_hand, y_train_ocr, y_test, X_franklin_1920, X_franklin_1931, y_franklin_1920, y_franklin_1931, X_test_segmentation_error, y_test_segmentation_error, colnames, colnames_sub
 
+if __name__ == '__main__':
 
+    # Set DB connection from environment
+    if 'ERUKA_DB' not in os.environ or not os.environ['ERUKA_DB']:
+        print('No PostgreSQL endpoing configured, please specify connection string via ERUKA_DB environment variable')
+        sys.exit()
+
+    db_uri = os.environ['ERUKA_DB']
+    db_engine = create_engine(db_uri)
+
+    main(db_engine,
+        ocr_path="/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/carb-oc-fine-tuning-10k-empty-raw-predictions.csv",
+        random_state=12345,
+        matrix_path='matrices')
 
 # def gen_matrices(X_train_hand, X_train_ocr, X_test, y_train_hand, y_train_ocr, y_test, colnames, matrix_path='matrices'):
 #     '''
