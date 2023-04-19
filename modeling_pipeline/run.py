@@ -229,7 +229,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     print(f"Length of Hamilton full test set: {len(y_test)}")
     print(f"Length of Hamilton 5-95 perc test subset: {len(test_subset)}")
     
-    test_rmse_5to95 = mean_squared_error(test_subset, pred_subset)
+    test_rmse_5to95 = mean_squared_error(test_subset, pred_subset, squared=False)
     
     # Error distance stats on subset
     test_perc_error_sub = get_perc_error(pred_subset, test_subset)
