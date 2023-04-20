@@ -229,7 +229,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     print(f"Length of Hamilton full test set: {len(y_test)}")
     print(f"Length of Hamilton 5-95 perc test subset: {len(test_subset)}")
 
-    test_rmse_5to95 = mean_squared_error(test_subset, pred_subset, squared=False)
+    test_rmse_sub = mean_squared_error(test_subset, pred_subset, squared=False)
+    test_r2_sub = r2_score(test_subset, pred_subset)
+    test_mae_sub = mean_absolute_error(test_subset, pred_subset)
 
     # Error distance stats on subset
     test_perc_error_sub = get_perc_error(pred_subset, test_subset)
@@ -269,6 +271,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
         print(f"Length of Franklin full test set: {len(y_franklin_1931)}")
         print(f"Length of Franklin 5-95 perc test subset: {len(f31_sub)}")
 
+        f31_rmse_sub = mean_squared_error(f31_sub, f31_pred_sub, squared=False)
         # Error distance stats on subset
         f31_perc_error_sub = get_perc_error(f31_pred_sub, f31_sub)
         f31_median_perc_error_sub = np.percentile(f31_perc_error_sub, 50)
@@ -281,6 +284,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # Plot true vs predicted value
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
     true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
+    
+    true_pred_plot_test_sub = plot_true_pred(pred_subset, test_subset)
+    
 
 
     # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
@@ -312,9 +318,13 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
                 'true_pred_plot_test': wandb.Image(true_pred_plot_test),
                 'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+                'true_pred_plot_test_sub': wandb.Image(true_pred_plot_test_sub),
                 'franklin_1920_rmse': franklin_1920_rmse,
                 'franklin_1931_rmse': franklin_1931_rmse,
-                'test_rmse_5to95': test_rmse_5to95,
+                'test_rmse_sub': test_rmse_sub,
+                'test_r2_sub': test_r2_sub,
+                'test_mae_sub': test_mae_sub,
+                'f31_rmse_sub': f31_rmse_sub, 
                 'median_perc_error_sub': median_perc_error_sub,
                 'within_5_perc_error_sub': within_5_perc_error_sub,
                 'within_10_perc_error_sub': within_10_perc_error_sub,
@@ -345,9 +355,10 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
                 'true_pred_plot_test': wandb.Image(true_pred_plot_test),
                 'true_pred_plot_train': wandb.Image(true_pred_plot_train),
-                'franklin_1920_rmse': franklin_1920_rmse,
-                'franklin_1931_rmse': franklin_1931_rmse,
-                'test_rmse_5to95': test_rmse_5to95,
+                'true_pred_plot_test_sub': wandb.Image(true_pred_plot_test_sub),
+                'test_rmse_sub': test_rmse_sub,
+                'test_r2_sub': test_r2_sub,
+                'test_mae_sub': test_mae_sub,
                 'median_perc_error_sub': median_perc_error_sub,
                 'within_5_perc_error_sub': within_5_perc_error_sub,
                 'within_10_perc_error_sub': within_10_perc_error_sub,
@@ -506,6 +517,10 @@ if __name__ == '__main__':
         # Print some important outputs as sanity check
         print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
         print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+        
+    # Print some important outputs as sanity check
+    print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
+    print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
     comments = args.comments
     modeltype = args.modeltype
