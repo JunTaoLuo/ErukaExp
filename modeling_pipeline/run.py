@@ -108,6 +108,9 @@ def get_perc_error(y_pred, y_true):
 
     return 100*abs((y_pred - y_true)/y_true)
 
+def get_squared_perc_error(y_pred, y_true):
+    
+    return ((y_pred - y_true)/y_true)**2
 
 def plot_true_pred(y_pred, y_true):
     '''
@@ -235,10 +238,17 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
     # Error distance stats on subset
     test_perc_error_sub = get_perc_error(pred_subset, test_subset)
+    
+    mape_sub = np.mean(test_perc_error_sub)
+    
     median_perc_error_sub = np.percentile(test_perc_error_sub, 50)
     within_5_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 5))
     within_10_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 10))
     within_20_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 20))
+    
+    squared_perc_error_sub = get_squared_perc_error(pred_subset, test_subset)
+    mspe_sub = np.mean(squared_perc_error_sub)
+    rmspe_sub = np.sqrt(mspe_sub)
 
     # Error on subsets
     test_rmse_25perc_lowest = mean_squared_error(y_test[y_test <= 2250], y_pred[y_test <= 2250], squared=False)
@@ -274,6 +284,12 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
         f31_rmse_sub = mean_squared_error(f31_sub, f31_pred_sub, squared=False)
         # Error distance stats on subset
         f31_perc_error_sub = get_perc_error(f31_pred_sub, f31_sub)
+        f31_mape_sub = np.mean(f31_perc_error_sub)
+        f31_squared_perc_error_sub = get_squared_perc_error(f31_pred_sub, f31_sub)
+        
+        f31_mspe_sub = np.mean(f31_squared_perc_error_sub)
+        f31_rmspe_sub = np.sqrt(f31_mspe_sub)
+        
         f31_median_perc_error_sub = np.percentile(f31_perc_error_sub, 50)
         f31_within_5_perc_error_sub = 100*(np.mean(f31_perc_error_sub <= 5))
         f31_within_10_perc_error_sub = 100*(np.mean(f31_perc_error_sub <= 10))
@@ -326,10 +342,16 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'test_mae_sub': test_mae_sub,
                 'f31_rmse_sub': f31_rmse_sub,
                 'median_perc_error_sub': median_perc_error_sub,
+                'mape_sub': mape_sub,
+                'mspe_sub': mspe_sub,
+                'rmspe_sub': rmspe_sub,
                 'within_5_perc_error_sub': within_5_perc_error_sub,
                 'within_10_perc_error_sub': within_10_perc_error_sub,
                 'within_20_perc_error_sub': within_20_perc_error_sub,
                 'f31_median_perc_error_sub': f31_median_perc_error_sub,
+                'f31_mape_sub': f31_mape_sub,
+                'f31_mspe_sub': f31_mspe_sub,
+                'f31_rmspe_sub': f31_rmspe_sub,
                 'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
                 'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub,
                 'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,
@@ -360,6 +382,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'test_r2_sub': test_r2_sub,
                 'test_mae_sub': test_mae_sub,
                 'median_perc_error_sub': median_perc_error_sub,
+                'mape_sub': mape_sub,
+                'mspe_sub': mspe_sub,
+                'rmspe_sub': rmspe_sub,
                 'within_5_perc_error_sub': within_5_perc_error_sub,
                 'within_10_perc_error_sub': within_10_perc_error_sub,
                 'within_20_perc_error_sub': within_20_perc_error_sub,
