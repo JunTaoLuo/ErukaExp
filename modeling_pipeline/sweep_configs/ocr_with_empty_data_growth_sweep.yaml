@@ -6,9 +6,9 @@ metric:
   goal: minimize
 parameters:
   n:
-    values: [ 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000]
+    values: [ 10000, 12500, 15000, 17500, 20000, 22500, 25000, 27500, 30000, 32500, 35000, 37500, 40000, 42500]
   ocrthreshold:
-    values: [-0.4, -0.3, -0.25, -0.2]
+    values: [-0.457373, -0.338136, -0.278107, -0.228455]
   n_estimators:
     values: [2500]
   max_depth:
@@ -18,14 +18,14 @@ parameters:
   max_features:
     values: ['sqrt']
 command:
-  - C:/Users/mihir/gitclones/ErukaExp/eruka/Scripts/python.exe
+  - python
   - ${program}
   - 'random_forest'
   - --trainsource=both
   - --shuffle
   - --comments=sweep_oc-carb-fine-tuning-10k-full
   - --seed=2839
-  - --ocrsource=C:/Users/mihir/gitclones/ErukaExp/modeling_pipeline/carb-oc-fine-tuning-10k-empty-raw-predictions.csv
+  - --ocrsource=/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/carb-oc-fine-tuning-10k-empty-raw-predictions.csv
   - --skiplargen
   - -regen
   - ${args}

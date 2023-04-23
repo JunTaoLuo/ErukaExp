@@ -89,7 +89,7 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
     ocr_labels = ocr_labels[ocr_labels['score'] >= ocr_threshold]
 
     ## 4. Drop very large predicted values (to reduce noise, we also don't care much about these properties even if the prediction is right)
-    ocr_labels = ocr_labels[ocr_labels['prediction'] <= 50000]
+    ocr_labels = ocr_labels[ocr_labels['prediction'] <= 10000]
 
     print(f"There are {len(ocr_labels)} OCR-labeled observations after dropping points based on the defined logic.")
 
