@@ -37,8 +37,12 @@ def get_perc_error(y_pred, y_true):
 
     return 100*abs((y_pred - y_true)/y_true)
 
+def get_squared_perc_error(y_pred, y_true):
 
-def plot_true_pred(y_pred, y_true):
+    return ((y_pred - y_true)/y_true)**2
+
+
+def plot_true_pred(y_pred, y_true, truncatedView=False):
     '''
     args:
         - y_pred: numpy array of predicted values
@@ -59,7 +63,11 @@ def plot_true_pred(y_pred, y_true):
 
     ax.set_xlabel('True Values', fontsize=15)
     ax.set_ylabel('Predictions', fontsize=15)
-    ax.axis('equal')
+
+    if truncatedView:
+        ax.set_xlim((1000, 7000))
+    else:
+        ax.axis('equal')
 
     return ax
 
@@ -84,7 +92,6 @@ def run_experiment(y_test, y_pred):
     # Metrics to log
 
     # Standard regression stats
-
     test_rmse = mean_squared_error(y_test, y_pred, squared=False)
     test_r2 = r2_score(y_test, y_pred)
     test_mae = mean_absolute_error(y_test, y_pred)
@@ -106,14 +113,23 @@ def run_experiment(y_test, y_pred):
     print(f"Length of Hamilton full test set: {len(y_test)}")
     print(f"Length of Hamilton 5-95 perc test subset: {len(test_subset)}")
 
-    test_rmse_5to95 = mean_squared_error(test_subset, pred_subset, squared=False)
+    test_rmse_sub = mean_squared_error(test_subset, pred_subset, squared=False)
+    test_r2_sub = r2_score(test_subset, pred_subset)
+    test_mae_sub = mean_absolute_error(test_subset, pred_subset)
 
     # Error distance stats on subset
     test_perc_error_sub = get_perc_error(pred_subset, test_subset)
+
+    mape_sub = np.mean(test_perc_error_sub)
+
     median_perc_error_sub = np.percentile(test_perc_error_sub, 50)
     within_5_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 5))
     within_10_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 10))
     within_20_perc_error_sub = 100*(np.mean(test_perc_error_sub <= 20))
+
+    squared_perc_error_sub = get_squared_perc_error(pred_subset, test_subset)
+    mspe_sub = np.mean(squared_perc_error_sub)
+    rmspe_sub = np.sqrt(mspe_sub)
 
     # Error on subsets
     test_rmse_25perc_lowest = mean_squared_error(y_test[y_test <= 2250], y_pred[y_test <= 2250], squared=False)
@@ -123,11 +139,21 @@ def run_experiment(y_test, y_pred):
     test_rmse_90perc_lowest = mean_squared_error(y_test[y_test <= 5489], y_pred[y_test <= 5489], squared=False)
     test_rmse_95perc_lowest = mean_squared_error(y_test[y_test <= 6714], y_pred[y_test <= 6714], squared=False)
 
+    # Franklin performance, if generalized model selected
+    franklin_1920_rmse = 0
+    franklin_1931_rmse = 0
+
+    f31_median_perc_error_sub = 0
+    f31_within_5_perc_error_sub = 0
+    f31_within_10_perc_error_sub = 0
+    f31_within_20_perc_error_sub = 0
 
     # Plots to log
 
     # Plot true vs predicted value
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
+    true_pred_plot_test_sub = plot_true_pred(pred_subset, test_subset, truncatedView=True)
+    # plt.show()
 
     wandb.log({'test_rmse': test_rmse,
             'test_r2': test_r2,
@@ -143,8 +169,14 @@ def run_experiment(y_test, y_pred):
             'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
             'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
-            'test_rmse_5to95': test_rmse_5to95,
+            'true_pred_plot_test_sub': wandb.Image(true_pred_plot_test_sub),
+            'test_rmse_sub': test_rmse_sub,
+            'test_r2_sub': test_r2_sub,
+            'test_mae_sub': test_mae_sub,
             'median_perc_error_sub': median_perc_error_sub,
+            'mape_sub': mape_sub,
+            'mspe_sub': mspe_sub,
+            'rmspe_sub': rmspe_sub,
             'within_5_perc_error_sub': within_5_perc_error_sub,
             'within_10_perc_error_sub': within_10_perc_error_sub,
             'within_20_perc_error_sub': within_20_perc_error_sub,
