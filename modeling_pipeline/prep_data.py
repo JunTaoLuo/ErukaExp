@@ -91,6 +91,11 @@ def read_labels(engine, keep, ocr_path, ocr_threshold):
     ## 4. Drop very large predicted values (to reduce noise, we also don't care much about these properties even if the prediction is right)
     ocr_labels = ocr_labels[ocr_labels['prediction'] <= 10000]
 
+    ## 5. Drop predicted values of 0 (to reduce noise, these are usually empty segments)
+    ocr_labels = ocr_labels[ocr_labels['prediction'] > 0]
+
+    print(ocr_labels.describe())
+
     print(f"There are {len(ocr_labels)} OCR-labeled observations after dropping points based on the defined logic.")
 
     # Process/format OCR labels to match hand labels

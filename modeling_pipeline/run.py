@@ -112,7 +112,7 @@ def get_squared_perc_error(y_pred, y_true):
 
     return ((y_pred - y_true)/y_true)**2
 
-def plot_true_pred(y_pred, y_true):
+def plot_true_pred(y_pred, y_true, truncatedView=False):
     '''
     args:
         - y_pred: numpy array of predicted values
@@ -133,7 +133,11 @@ def plot_true_pred(y_pred, y_true):
 
     ax.set_xlabel('True Values', fontsize=15)
     ax.set_ylabel('Predictions', fontsize=15)
-    ax.axis('equal')
+
+    if truncatedView:
+        ax.set_xlim((1000, 7000))
+    else:
+        ax.axis('equal')
 
     return ax
 
@@ -300,10 +304,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # Plot true vs predicted value
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
     true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
-
-    true_pred_plot_test_sub = plot_true_pred(pred_subset, test_subset)
-
-
+    true_pred_plot_test_sub = plot_true_pred(pred_subset, test_subset, truncatedView=True)
 
     # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
 
@@ -314,6 +315,8 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     wandb.sklearn.plot_feature_importances(model)
 
     if franklin is True:
+        f31_true_pred_plot_test_sub = plot_true_pred(f31_pred_sub, f31_sub, truncatedView=True)
+
         wandb.log({'test_rmse': test_rmse,
                 'test_r2': test_r2,
                 'train_rmse': train_rmse,
@@ -335,6 +338,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'true_pred_plot_test': wandb.Image(true_pred_plot_test),
                 'true_pred_plot_train': wandb.Image(true_pred_plot_train),
                 'true_pred_plot_test_sub': wandb.Image(true_pred_plot_test_sub),
+                'f31_true_pred_plot_test_sub': wandb.Image(f31_true_pred_plot_test_sub),
                 'franklin_1920_rmse': franklin_1920_rmse,
                 'franklin_1931_rmse': franklin_1931_rmse,
                 'test_rmse_sub': test_rmse_sub,
