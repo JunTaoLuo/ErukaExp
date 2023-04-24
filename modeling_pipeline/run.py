@@ -290,6 +290,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
         f31_perc_error_sub = get_perc_error(f31_pred_sub, f31_sub)
         f31_mape_sub = np.mean(f31_perc_error_sub)
         f31_squared_perc_error_sub = get_squared_perc_error(f31_pred_sub, f31_sub)
+        f31_test_r2_sub = r2_score(f31_pred_sub, f31_sub)
 
         f31_mspe_sub = np.mean(f31_squared_perc_error_sub)
         f31_rmspe_sub = np.sqrt(f31_mspe_sub)
@@ -352,6 +353,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
                 'within_5_perc_error_sub': within_5_perc_error_sub,
                 'within_10_perc_error_sub': within_10_perc_error_sub,
                 'within_20_perc_error_sub': within_20_perc_error_sub,
+                'f31_test_r2_sub': f31_test_r2_sub,
                 'f31_median_perc_error_sub': f31_median_perc_error_sub,
                 'f31_mape_sub': f31_mape_sub,
                 'f31_mspe_sub': f31_mspe_sub,
@@ -534,37 +536,37 @@ if __name__ == '__main__':
         X_train = X_train[:n, :]
         y_train = y_train[:n]
 
-        # Get model type and hyperparameters
-        modeltype = args.modeltype
+    # Get model type and hyperparameters
+    modeltype = args.modeltype
 
-        n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
-        alpha = args.alpha
-        ocr_threshold = args.ocrthreshold
+    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
+    alpha = args.alpha
+    ocr_threshold = args.ocrthreshold
 
-        num_cv_splits = args.cvsplits
+    num_cv_splits = args.cvsplits
 
-        # Print some important outputs as sanity check
-        print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
-        print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+    # Print some important outputs as sanity check
+    print(f"\nShape of X_train = {X_train.shape}, shape of y_train = {y_train.shape}\n")
+    print(f"\nShape of X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
-        comments = args.comments
-        modeltype = args.modeltype
-        num_cv_splits = args.cvsplits
-        n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
-        alpha = args.alpha
-        n = args.n
-        seed = args.seed
-        keep = args.keep
-        ocr_threshold = args.ocrthreshold
+    comments = args.comments
+    modeltype = args.modeltype
+    num_cv_splits = args.cvsplits
+    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features = args.n_estimators, args.max_depth, args.min_samples_split, args.min_samples_leaf, args.max_features
+    alpha = args.alpha
+    n = args.n
+    seed = args.seed
+    keep = args.keep
+    ocr_threshold = args.ocrthreshold
 
-        if args.testsource == "segmentation_errors":
-            X_test = X_test_segmentation_error
-            y_test = y_test_segmentation_error
-            print(f"Using segmentation error labels as test set X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
+    if args.testsource == "segmentation_errors":
+        X_test = X_test_segmentation_error
+        y_test = y_test_segmentation_error
+        print(f"Using segmentation error labels as test set X_test = {X_test.shape}, shape of y_test = {y_test.shape}\n")
 
-        # Run the experiment
-        run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
-                    franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
-                    colnames, num_cv_splits, seed,
-                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
-                    alpha, ocr_threshold, comments)
+    # Run the experiment
+    run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
+                franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
+                colnames, num_cv_splits, seed,
+                n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
+                alpha, ocr_threshold, comments)
