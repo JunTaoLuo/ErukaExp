@@ -1,0 +1,23 @@
+program: run_da.py
+name: da_sweep
+method: grid
+metric:
+  name: test_rmse
+  goal: minimize
+parameters:
+  adaptertype:
+    values: ['none', 'SA', 'CORAL', 'TrAdaBoostR2', 'TCA']
+command:
+  - python
+  - ${program}
+  - random_forest
+  - --franklin
+  - --keep=simple
+  - --trainsource=hand
+  - --n_estimators=2500
+  - --max_depth=200
+  - --min_samples_split=4
+  - --max_features=sqrt
+  - --ocrsource=/Users/jtluo/Documents/workspace/juntaoluo/ErukaExp/Dataset/carb-oc-fine-tuning-10k-empty-raw-predictions.csv
+  - --ocrthreshold=-0.338136
+  - ${args}

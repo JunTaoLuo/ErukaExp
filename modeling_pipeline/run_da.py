@@ -1,6 +1,6 @@
 '''
 run.py
-Author: Mihir Bhaskar
+Author: Jun Tao Luo
 Purpose: run the whole modeling pipeline, including logging results to wandb
 Notes:
 - This script is designed to be run from the command line, with several arguments parsed through argparse
@@ -14,6 +14,8 @@ import sys
 from sqlalchemy import create_engine
 import argparse
 import pandas as pd
+from adapt.feature_based import fMMD, SA, TCA, CORAL
+from adapt.instance_based import TrAdaBoostR2, TwoStageTrAdaBoostR2
 
 from sklearn.linear_model import LinearRegression, PoissonRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -76,8 +78,33 @@ def train(modeltype, adaptertype, X_train, y_train, X_train_target, y_train_targ
                                     min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
                                     max_features=max_features, random_state=seed, n_jobs=-2)
 
-        if adaptertype=='transfer_forest':
-            reg =
+
+
+        print(f"Adapter {adaptertype}")
+        if adaptertype=='TrAdaBoostR2':
+            reg = TrAdaBoostR2(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
+        if adaptertype=='TwoStageTrAdaBoostR2':
+            reg = TwoStageTrAdaBoostR2(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
+        if adaptertype=='fMMD':
+            reg = fMMD(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
+        if adaptertype=='SA':
+            reg = SA(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
+        if adaptertype=='TCA':
+            reg = TCA(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
+        if adaptertype=='CORAL':
+            reg = CORAL(reg,
+                                           Xt=X_train_target[:100],
+                                           yt=y_train_target[:100])
 
     elif modeltype=='linear_regression':
         reg = LinearRegression()
@@ -138,7 +165,7 @@ def plot_true_pred(y_pred, y_true):
     return ax
 
 
-def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
+def run_experiment(modeltype, adaptertype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
                    franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
                    colnames, num_cv_splits, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
@@ -169,32 +196,37 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # even if it doesn't make sense. Will require the user, when analysing results, to focus on the relevant columns
     # for each model class.
 
-    # wandb.init(project='eruka-housing', entity='gormleylab',
-    #            name=f'{modeltype}_{n}',
-    #            config={'modeltype': modeltype,
-    #                    'franklin': franklin,
-    #                    'n': n,
-    #                    'trainsource': trainsource,
-    #                    'full_data_used': full_data_used,
-    #                    'keep': keep,
-    #                    'num_cv_splits': num_cv_splits,
-    #                    'n_estimators': n_estimators,
-    #                    'max_depth': max_depth,
-    #                    'min_samples_split': min_samples_split,
-    #                    'min_samples_leaf': min_samples_leaf,
-    #                    'max_features': max_features,
-    #                    'alpha': alpha,
-    #                    'ocr_threshold': ocr_threshold,
-    #                    'comments':comments})
+    wandb.init(project='eruka-housing', entity='gormleylab',
+               name=f'{modeltype}_{adaptertype}',
+               config={'modeltype': modeltype,
+                       'franklin': franklin,
+                       'n': n,
+                       'trainsource': trainsource,
+                       'full_data_used': full_data_used,
+                       'keep': keep,
+                       'num_cv_splits': num_cv_splits,
+                       'n_estimators': n_estimators,
+                       'max_depth': max_depth,
+                       'min_samples_split': min_samples_split,
+                       'min_samples_leaf': min_samples_leaf,
+                       'max_features': max_features,
+                       'alpha': alpha,
+                       'ocr_threshold': ocr_threshold,
+                       'comments':comments})
 
     # Note: here, I pull the hyperparameters from the wandb init config (rather than directly using the command line variables)
     # This is to allow for wandb sweeps to be configured for hyperparamter search (where we loop across different config vals)
 
-    model = train(modeltype, X_train, y_train, X_franklin_1931, y_franklin_1931, seed,
+    model = train(modeltype, adaptertype, X_train, y_train, X_franklin_1931, y_franklin_1931, seed,
                    n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features,
                    alpha)
 
-    y_pred = predict(model, X_test)
+    y_pred = predict(model, X_franklin_1931[100:])
+    print("y_pred:")
+    print(f"{y_pred}")
+    y_test = y_franklin_1931[100:]
+    print("y_test:")
+    print(f"{y_test}")
     y_train_pred = predict(model, X_train)
 
     # Calculating cross-validated metrics
@@ -285,7 +317,6 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     true_pred_plot_test = plot_true_pred(y_pred, y_test)
     true_pred_plot_train = plot_true_pred(y_train_pred, y_train)
 
-
     # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, modeltype) # Note: this plot_regressor methods takes too much time because it creates unnecessary graphs
 
     # Log residuals plot for test data
@@ -294,70 +325,70 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     # Log feature importance if the method allows for it
     # wandb.sklearn.plot_feature_importances(model)
 
-    # if franklin is True:
-    #     wandb.log({'test_rmse': test_rmse,
-    #             'test_r2': test_r2,
-    #             'train_rmse': train_rmse,
-    #             'train_r2': train_r2,
-    #             'cv_rmse': cv_rmse,
-    #             'cv_r2': cv_r2,
-    #             'train_mae': train_mae,
-    #             'test_mae': test_mae,
-    #             'median_test_error_perc': median_perc_error,
-    #             'within_5perc_testerror': within_5_perc_error,
-    #             'within_10perc_testerror': within_10_perc_error,
-    #             'within_20perc_testerror': within_20_perc_error,
-    #             'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
-    #             'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
-    #             'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
-    #             'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
-    #             'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
-    #             'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
-    #             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
-    #             'true_pred_plot_train': wandb.Image(true_pred_plot_train),
-    #             'franklin_1920_rmse': franklin_1920_rmse,
-    #             'franklin_1931_rmse': franklin_1931_rmse,
-    #             'test_rmse_5to95': test_rmse_5to95,
-    #             'median_perc_error_sub': median_perc_error_sub,
-    #             'within_5_perc_error_sub': within_5_perc_error_sub,
-    #             'within_10_perc_error_sub': within_10_perc_error_sub,
-    #             'within_20_perc_error_sub': within_20_perc_error_sub,
-    #             'f31_median_perc_error_sub': f31_median_perc_error_sub,
-    #             'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
-    #             'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub,
-    #             'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,
-    #             })
-    # else:
-    #     wandb.log({'test_rmse': test_rmse,
-    #             'test_r2': test_r2,
-    #             'train_rmse': train_rmse,
-    #             'train_r2': train_r2,
-    #             'cv_rmse': cv_rmse,
-    #             'cv_r2': cv_r2,
-    #             'train_mae': train_mae,
-    #             'test_mae': test_mae,
-    #             'median_test_error_perc': median_perc_error,
-    #             'within_5perc_testerror': within_5_perc_error,
-    #             'within_10perc_testerror': within_10_perc_error,
-    #             'within_20perc_testerror': within_20_perc_error,
-    #             'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
-    #             'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
-    #             'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
-    #             'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
-    #             'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
-    #             'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
-    #             'true_pred_plot_test': wandb.Image(true_pred_plot_test),
-    #             'true_pred_plot_train': wandb.Image(true_pred_plot_train),
-    #             'franklin_1920_rmse': franklin_1920_rmse,
-    #             'franklin_1931_rmse': franklin_1931_rmse,
-    #             'test_rmse_5to95': test_rmse_5to95,
-    #             'median_perc_error_sub': median_perc_error_sub,
-    #             'within_5_perc_error_sub': within_5_perc_error_sub,
-    #             'within_10_perc_error_sub': within_10_perc_error_sub,
-    #             'within_20_perc_error_sub': within_20_perc_error_sub,
-    #             })
+    if franklin is True:
+        wandb.log({'test_rmse': test_rmse,
+                'test_r2': test_r2,
+                'train_rmse': train_rmse,
+                'train_r2': train_r2,
+                'cv_rmse': cv_rmse,
+                'cv_r2': cv_r2,
+                'train_mae': train_mae,
+                'test_mae': test_mae,
+                'median_test_error_perc': median_perc_error,
+                'within_5perc_testerror': within_5_perc_error,
+                'within_10perc_testerror': within_10_perc_error,
+                'within_20perc_testerror': within_20_perc_error,
+                'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
+                'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
+                'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
+                'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
+                'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
+                'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
+                'true_pred_plot_test': wandb.Image(true_pred_plot_test),
+                'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+                'franklin_1920_rmse': franklin_1920_rmse,
+                'franklin_1931_rmse': franklin_1931_rmse,
+                'test_rmse_5to95': test_rmse_5to95,
+                'median_perc_error_sub': median_perc_error_sub,
+                'within_5_perc_error_sub': within_5_perc_error_sub,
+                'within_10_perc_error_sub': within_10_perc_error_sub,
+                'within_20_perc_error_sub': within_20_perc_error_sub,
+                'f31_median_perc_error_sub': f31_median_perc_error_sub,
+                'f31_within_5_perc_error_sub': f31_within_5_perc_error_sub,
+                'f31_within_10_perc_error_sub': f31_within_10_perc_error_sub,
+                'f31_within_20_perc_error_sub': f31_within_20_perc_error_sub,
+                })
+    else:
+        wandb.log({'test_rmse': test_rmse,
+                'test_r2': test_r2,
+                'train_rmse': train_rmse,
+                'train_r2': train_r2,
+                'cv_rmse': cv_rmse,
+                'cv_r2': cv_r2,
+                'train_mae': train_mae,
+                'test_mae': test_mae,
+                'median_test_error_perc': median_perc_error,
+                'within_5perc_testerror': within_5_perc_error,
+                'within_10perc_testerror': within_10_perc_error,
+                'within_20perc_testerror': within_20_perc_error,
+                'test_rmse_25perc_lowest': test_rmse_25perc_lowest,
+                'test_rmse_50perc_lowest': test_rmse_50perc_lowest,
+                'test_rmse_75perc_lowest': test_rmse_75perc_lowest,
+                'test_rmse_85perc_lowest': test_rmse_85perc_lowest,
+                'test_rmse_90perc_lowest': test_rmse_90perc_lowest,
+                'test_rmse_95perc_lowest': test_rmse_95perc_lowest,
+                'true_pred_plot_test': wandb.Image(true_pred_plot_test),
+                'true_pred_plot_train': wandb.Image(true_pred_plot_train),
+                'franklin_1920_rmse': franklin_1920_rmse,
+                'franklin_1931_rmse': franklin_1931_rmse,
+                'test_rmse_5to95': test_rmse_5to95,
+                'median_perc_error_sub': median_perc_error_sub,
+                'within_5_perc_error_sub': within_5_perc_error_sub,
+                'within_10_perc_error_sub': within_10_perc_error_sub,
+                'within_20_perc_error_sub': within_20_perc_error_sub,
+                })
 
-    # wandb.finish()
+    wandb.finish()
 
 
 if __name__ == '__main__':
@@ -383,7 +414,7 @@ if __name__ == '__main__':
 
     # Model-related arguments
     parser.add_argument('modeltype', action='store', choices = ['random_forest'], help="name of model type to run") # the only required positional argument
-    parser.add_argument('--adaptertype', action='store', choices = ['none', 'transfer_forest'], default='none', required=False,help="name of adapter type to run") # the only required positional argument
+    parser.add_argument('--adaptertype', action='store', choices = ['none', 'TrAdaBoostR2', 'TwoStageTrAdaBoostR2', 'fMMD', 'SA', 'TCA', 'CORAL'], default='none', required=False,help="name of adapter type to run") # the only required positional argument
 
     parser.add_argument('--franklin', action='store_true', required=False, help='whether to train generalizable model and test on franklin')
 

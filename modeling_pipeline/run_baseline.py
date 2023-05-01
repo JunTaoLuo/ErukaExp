@@ -1,6 +1,6 @@
 '''
 run.py
-Author: Mihir Bhaskar
+Author: Jun Tao Luo
 Purpose: run the whole modeling pipeline, including logging results to wandb
 Notes:
 - This script is designed to be run from the command line, with several arguments parsed through argparse
