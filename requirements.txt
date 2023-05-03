@@ -16,3 +16,4 @@ seaborn
 matplotlib
 wandb
 openpyxl
+geopandas

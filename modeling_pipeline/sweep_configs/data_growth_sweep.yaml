@@ -1,12 +1,12 @@
 program: run.py
-name: data_growth_sweep_both
+name: data_growth_sweep_hand
 method: grid
 metric:
-  name: test_rmse
+  name: mape_sub
   goal: minimize
 parameters:
   n:
-    values: [1000, 2000, 3000, 5000, 7500, 9000, 10000, 11000]
+    values: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000]
   n_estimators:
     values: [2500]
   max_depth:
@@ -19,8 +19,7 @@ command:
   - C:/Users/mihir/gitclones/ErukaExp/eruka/Scripts/python.exe
   - ${program}
   - 'random_forest'
-  - --trainsource=both
+  - --trainsource=hand
   - --shuffle
-  - --comments=filterocr
   - --seed=2839
   - ${args}
