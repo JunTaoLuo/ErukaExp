@@ -254,8 +254,9 @@ def read_data(engine, keep, ocr_path, ocr_threshold):
     return hand_merged, ocr_merged, hand_merged_sub, ocr_merged_sub, franklin_1920_merged, franklin_1931_merged, segmentation_error_merged, download_errors_merged
 
 def extract_xy(df):
+    df.set_index('parcelid', inplace=True)
     y = df['building_value']
-    X = df.drop(columns=['parcelid', 'building_value'])
+    X = df.drop(columns=['building_value'])
     return X, y
 
 def split_data(df, test_size = 0.2, random_state = 4):
@@ -373,14 +374,13 @@ def main(engine, ocr_threshold=-9999, keep='simple', ocr_path='oc-carb-fine-tuni
 
         # Concat the rest of the data (i.e., cases with year or handwritten) to training only
         hand_df_yearhand = hand_df[~hand_df['parcelid'].isin(hand_df_simple['parcelid'])]
-        y_train_yearhand = hand_df_yearhand['building_value']
-        X_train_yearhand = hand_df_yearhand.drop(columns=['parcelid', 'building_value'])
+        X_train_yearhand, y_train_yearhand = extract_xy(hand_df_yearhand)
 
         X_train_hand = pd.concat([X_train_hand, X_train_yearhand])
         y_train_hand = pd.concat([y_train_hand, y_train_yearhand])
 
         hand_df_yearhand_sub = hand_df_sub[~hand_df_sub['parcelid'].isin(hand_df_simple_sub['parcelid'])]
-        X_train_yearhand_sub = hand_df_yearhand_sub.drop(columns=['parcelid', 'building_value'])
+        X_train_yearhand_sub, y_train_yearhand_sub = extract_xy(hand_df_yearhand)
 
         X_train_hand_sub = pd.concat([X_train_hand_sub, X_train_yearhand_sub])
 
@@ -407,24 +407,22 @@ def main(engine, ocr_threshold=-9999, keep='simple', ocr_path='oc-carb-fine-tuni
     X_train_hand_sub, colnames_sub = process_features(X_train_hand_sub)
     X_test_sub, colnames_sub = process_features(X_test_sub)
 
-    X_train_ocr = ocr_df.drop(columns=['parcelid', 'building_value'])
-    y_train_ocr = ocr_df['building_value']
+    X_train_ocr, y_train_ocr = extract_xy(ocr_df)
+    
     X_train_ocr, colnames = process_features(X_train_ocr)
 
-    X_train_ocr_sub = ocr_df_sub.drop(columns=['parcelid', 'building_value'])
+    X_train_ocr_sub, y_train_ocr_sub = extract_xy(ocr_df_sub)
     X_train_ocr_sub, colnames_sub = process_features(X_train_ocr_sub)
-
-    X_franklin_1920 = franklin_1920_df.drop(columns=['parcelid', 'building_value'])
+    
+    X_franklin_1920, y_franklin_1920 = extract_xy(franklin_1920_df)
     X_franklin_1920, colnames_sub = process_features(X_franklin_1920)
-    X_franklin_1931 = franklin_1931_df.drop(columns=['parcelid', 'building_value'])
+    
+    X_franklin_1931, y_franklin_1931 = extract_xy(franklin_1931_df)
     X_franklin_1931, colnames_sub = process_features(X_franklin_1931)
-
-    y_franklin_1920 = franklin_1920_df['building_value']
-    y_franklin_1931 = franklin_1931_df['building_value']
 
     X_test_segmentation_error, _ = process_features(X_test_segmentation_error)
 
-    hand_sample = hand_df_sub.drop(columns=['parcelid', 'building_value', 'is_ocr'])
+    hand_sample = hand_df_sub.drop(columns=['building_value', 'is_ocr'])
     hand_sample, hand_sample_cols = process_features(hand_sample)
 
     download_errors_sample = download_errors_df.drop(columns=['parcelid'])
@@ -449,6 +447,9 @@ def main(engine, ocr_threshold=-9999, keep='simple', ocr_path='oc-carb-fine-tuni
         'hand_sample': hand_sample,
         'download_errors_sample': download_errors_sample,
     }
+
+    # Before converting to matrix, for y_test, export parcelids so results can be merged back onto feature data for postmodeling analysis
+    y_test.to_csv(f"{matrix_path}/y_test_ids.csv")
 
     for i in mapping:
         gen_matrix(mapping[i], matrix_path, i)

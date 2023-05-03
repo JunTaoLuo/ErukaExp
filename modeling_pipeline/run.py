@@ -200,6 +200,9 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
     y_pred = predict(model, X_test)
     y_train_pred = predict(model, X_train)
+    
+    # Stats for exporting to file (postmodeling bias analysis)
+    np.savetxt("test_preds.txt", y_pred)
 
     # Calculating cross-validated metrics
     cross_val_mses = cross_val_score(model, X_train, y_train, scoring='neg_mean_squared_error',
@@ -314,6 +317,8 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
     # Log feature importance if the method allows for it
     wandb.sklearn.plot_feature_importances(model)
+    
+    
 
     if franklin is True:
         f31_true_pred_plot_test_sub = plot_true_pred(f31_pred_sub, f31_sub, truncatedView=True)
