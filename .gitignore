@@ -13,3 +13,4 @@ eruka/
 modeling_pipeline/wandb/
 modeling_pipeline/matrices
 modeling_pipeline/*.csv
+hamilton_tracts/
