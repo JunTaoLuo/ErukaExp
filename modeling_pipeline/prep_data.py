@@ -323,15 +323,15 @@ def process_features(X_df):
         - list of all the feature names in column order (so we can add this back post-modeling)
     '''
 
-    # Pull out column names
-    colnames = X_df.columns.values
-
     # Imputing features as defined in function above
     X_df = impute_features(X_df)
 
     # keep only numeric features so we don't run into problems with different classes (e.g. linear regression),
     # but can relax this later
     X_df = X_df.select_dtypes(['number'])
+    
+    # Pull out column names
+    colnames = X_df.columns.values
 
     # use a standard scaler so we don't run into scale issues with regularization
     scaler = StandardScaler().fit(X_df)

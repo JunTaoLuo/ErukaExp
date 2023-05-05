@@ -141,6 +141,37 @@ def plot_true_pred(y_pred, y_true, truncatedView=False):
 
     return ax
 
+def plot_feat_imp_labeled(model, colnames, show_top_n=None, ax=None, label=True):
+    '''
+    args:
+        - trained model object that has a feature_importances_
+        - column/attribute names, in order of how they appear in the matrix
+        - whether to show only the top 'k' feature importances in the graph
+        - the axis to draw the plot on
+        - whether to show the feature name labels
+    '''
+    feature_importance = model.feature_importances_
+    feature_df = pd.DataFrame({'Feature Names': colnames, 'Importance': feature_importance})
+    feature_df.sort_values('Importance', ascending=False, inplace=True)
+    
+    if show_top_n is not None:
+        feature_df = feature_df[:show_top_n]
+        title_str = f"Top {show_top_n} features"
+    else:
+        title_str = 'All features'
+    
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
+    
+    sns.barplot(x='Importance', y='Feature Names', palette='flare', data=feature_df, ax=ax)
+    ax.set_title(f"Feature Importances for ML model: {title_str}")
+    if not label:
+        ax.set_yticklabels([])
+    
+    return fig, ax
+
 
 def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_test, y_train, y_test,
                    franklin, X_franklin_1920, y_franklin_1920, X_franklin_1931, y_franklin_1931,
@@ -202,6 +233,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     y_train_pred = predict(model, X_train)
     
     # Stats for exporting to file (postmodeling bias analysis)
+    #TODO: move to outputs folder
     np.savetxt("test_preds.txt", y_pred)
 
     # Calculating cross-validated metrics
@@ -317,7 +349,16 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
 
     # Log feature importance if the method allows for it
     wandb.sklearn.plot_feature_importances(model)
-    
+        
+    # Get better feature importance plots with labels for paper
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(20, 12))
+
+    plot_feat_imp_labeled(model, colnames, ax=ax1, label=False)
+    plot_feat_imp_labeled(model, colnames, show_top_n=10, ax=ax2)
+
+    # TODO: move to outputs folder
+    fig.subplots_adjust(wspace=0.4)
+    fig.savefig('feat_imp_all_and_top10.png')
     
 
     if franklin is True:
