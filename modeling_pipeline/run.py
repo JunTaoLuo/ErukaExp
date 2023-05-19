@@ -351,7 +351,7 @@ def run_experiment(modeltype, n, trainsource, full_data_used, keep, X_train, X_t
     wandb.sklearn.plot_feature_importances(model)
         
     # Get better feature importance plots with labels for paper
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(20, 12))
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(24, 12))
 
     plot_feat_imp_labeled(model, colnames, ax=ax1, label=False)
     plot_feat_imp_labeled(model, colnames, show_top_n=10, ax=ax2)
