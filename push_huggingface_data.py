@@ -53,7 +53,7 @@ def upload_folder(folder_path):
     api = HfApi(token=os.getenv("HF_TOKEN"))
     api.upload_folder(
         folder_path=folder_path,
-        repo_id="mihirbhaskar/historical-housing-records-eruka-cmu",
+        repo_id="eruka-cmu-housing/historical-appraisals-ocr-ml",
         repo_type="dataset"
     )
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
         hamilton_feats = pd.read_sql(hamilton_feats_query, eng)
         print(f"Hamilton county features shape: {hamilton_feats.shape}")
-        hamilton_feats.to_csv(os.path.join(local_dir,'hamilton_county','building_features.csv'), index=False)
+        hamilton_feats.to_csv(os.path.join(local_dir,'hamilton_county','building_features_hamilton.csv'), index=False)
 
         # Hamilton county hand_labeled
         sql = '''SELECT parcelid, building_value,
@@ -96,13 +96,13 @@ if __name__ == '__main__':
         hamilton_handlabeled = pd.read_sql(sql, eng)
         print(f"Hamilton county hand_labeled shape: {hamilton_handlabeled.shape}")
         hamilton_handlabeled = hamilton_handlabeled[hamilton_handlabeled['year'] == 1933]
-        hamilton_handlabeled.to_csv(os.path.join(local_dir,'hamilton_county','hand_annotations_1933_hamilton.csv'), index=False)
+        hamilton_handlabeled.to_csv(os.path.join(local_dir,'hamilton_county','hand_annotations_single_cell_hamilton.csv'), index=False)
 
         # Franklin county features
 
         franklin_feats = pd.read_sql('SELECT * FROM processed.franklin_features', eng)
         print(f"Franklin county features shape: {franklin_feats.shape}")
-        franklin_feats.to_csv(os.path.join(local_dir,'franklin_county','building_features.csv'), index=False)
+        franklin_feats.to_csv(os.path.join(local_dir,'franklin_county','building_features_franklin.csv'), index=False)
 
         # Franklin county hand_labeled
         franklin_labels_1920 = pd.read_sql('''select parcelid, building_value, year
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         franklin_labels_1920['year'] = 1920
 
         franklin_labels = pd.concat([franklin_labels_1920, franklin_labels_1931], axis=0)
-        franklin_labels.to_csv(os.path.join(local_dir,'franklin_county','hand_annotations_franklin.csv'), index=False)
+        franklin_labels.to_csv(os.path.join(local_dir,'franklin_county','hand_annotations_single_cell_franklin.csv'), index=False)
 
         # Write the entire huggingface_data directory (not including the huggingface_data level) to my huggin face repo
         upload_folder(local_dir)
