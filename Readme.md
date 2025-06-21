@@ -1,4 +1,7 @@
-# Eruka Experiments
+# Predicting the Past: Estimating Historical Appraisals with OCR and Machine Learning
+
+Paper: [arxiv](https://arxiv.org/pdf/2505.24676)
+Dataset: [huggingface](https://huggingface.co/datasets/eruka-cmu-housing/historical-appraisals-ocr-ml)
 
 ## Setup
 
